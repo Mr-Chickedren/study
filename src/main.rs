@@ -1,4 +1,4 @@
-const MAX_TIME:u8 = 50;
+const MAX_TIME:u8 = 30;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -41,10 +41,17 @@ fn init_schedule(kind_of_product: u8, kind_of_machine: u8) -> Vec<u8> {
 	schedule
 }
 
-fn print_schedule(schedule: Vec<u8>) {
+fn print_schedule(schedule: Vec<u8>, kind_of_product: u8) {
 	println!("***schedule***");
 	for i in 0..schedule.len() {
-		if i%(MAX_TIME as usize) == 0 { print!("\n") }
+		if i%(MAX_TIME as usize) == 0 {
+			if (i/(MAX_TIME as usize))%(kind_of_product as usize) == 0 {
+				print!("\nM{:<3}", i/((MAX_TIME as usize)*(kind_of_product as usize)));
+			}
+			else {
+				print!("\n{:<4}","");
+			}
+		}
 		print!("{}",schedule[i]);
 	}
 	print!("\n");
@@ -86,5 +93,5 @@ fn main() {
 	println!("Machine:\n{:#?}",mac);
 
 	let mut schedule: Vec<u8> = init_schedule(pro.len() as u8, mac.len() as u8);
-	print_schedule(schedule);
+	print_schedule(schedule, pro.len() as u8);
 }
