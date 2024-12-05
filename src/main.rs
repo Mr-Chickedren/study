@@ -1,3 +1,5 @@
+const MAX_TIME:u8 = 50;
+
 #[derive(Debug)]
 #[allow(dead_code)]
 enum Size {
@@ -27,6 +29,25 @@ struct Machine {
 	color: u8,
 	size: Size,
 	speed: u32,
+}
+
+fn init_schedule(kind_of_product: u8, kind_of_machine: u8) -> Vec<u8> {
+	let mut schedule: Vec<u8> = Vec::new();
+
+	for _i in 0..(kind_of_product as usize)*(kind_of_machine as usize)*(MAX_TIME as usize) {
+		schedule.push(0);
+	}
+
+	schedule
+}
+
+fn print_schedule(schedule: Vec<u8>) {
+	println!("***schedule***");
+	for i in 0..schedule.len() {
+		if i%(MAX_TIME as usize) == 0 { print!("\n") }
+		print!("{}",schedule[i]);
+	}
+	print!("\n");
 }
 
 fn main() {
@@ -63,4 +84,7 @@ fn main() {
 
 	println!("Product:\n{:#?}",pro);
 	println!("Machine:\n{:#?}",mac);
+
+	let mut schedule: Vec<u8> = init_schedule(pro.len() as u8, mac.len() as u8);
+	print_schedule(schedule);
 }
