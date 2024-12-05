@@ -13,6 +13,16 @@ enum Size {
 	B3,
 	B4,
 	B5,
+
+	KK1,
+	KK2,
+	KK4,
+	KK8,
+
+	SR1,
+	SR2,
+	SR4,
+	SR8,
 }
 
 #[derive(Debug)]
@@ -79,12 +89,12 @@ fn main() {
 	let mac: Vec<Machine> = vec![
 		Machine {
 			color: 2,
-			size: Size::A2,
+			size: Size::KK2,
 			speed: 5000,
 		},
 		Machine {
 			color: 4,
-			size: Size::A1,
+			size: Size::KK1,
 			speed: 5000,
 		}
 	];
