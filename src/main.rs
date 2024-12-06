@@ -31,16 +31,16 @@ enum SizePaper {
 impl SizePaper {
 	fn as_size(&self) -> (u32, u32) {
 		match self {
-			SizePaper::A1 => (26,27),
-			SizePaper::A2 => (28,28),
-			SizePaper::A3 => (29,30),
-			SizePaper::A4 => (31,32),
+			SizePaper::A1 => (594,841),
+			SizePaper::A2 => (420,594),
+			SizePaper::A3 => (297,420),
+			SizePaper::A4 => (210,297),
 
-			SizePaper::B1 => (26,27),
-			SizePaper::B2 => (28,28),
-			SizePaper::B3 => (29,30),
-			SizePaper::B4 => (31,32),
-			SizePaper::B5 => (31,32),
+			SizePaper::B1 => (728,1030),
+			SizePaper::B2 => (515,728),
+			SizePaper::B3 => (364,515),
+			SizePaper::B4 => (257,364),
+			SizePaper::B5 => (182,257),
 		}
 	}
 }
@@ -61,15 +61,15 @@ enum SizeBan {
 impl SizeBan {
 	fn as_size(&self) -> (u32, u32) {
 		match self {
-			SizeBan::KK1 => (26,27),
-			SizeBan::KK2 => (28,28),
-			SizeBan::KK4 => (29,30),
-			SizeBan::KK8 => (31,32),
+			SizeBan::KK1 => (636,939),
+			SizeBan::KK2 => (469,636),
+			SizeBan::KK4 => (318,469),
+			SizeBan::KK8 => (234,318),
 
-			SizeBan::SR1 => (26,27),
-			SizeBan::SR2 => (28,28),
-			SizeBan::SR4 => (29,30),
-			SizeBan::SR8 => (31,32),
+			SizeBan::SR1 => (788,1091),
+			SizeBan::SR2 => (545,788),
+			SizeBan::SR4 => (394,545),
+			SizeBan::SR8 => (272,394),
 		}
 	}
 }
