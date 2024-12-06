@@ -135,7 +135,10 @@ fn print_schedule(schedule: Vec<u8>, kind_of_product: u8) {
 fn get_imposition_pattern(_machine_size: SizeBan, products: Vec<Product>) /*-> Vec<Vec<u8>>*/ {
 	let mut sort_size_a: Vec<(u8, ASize)> = Vec::new();
 	let mut sort_size_b: Vec<(u8, BSize)> = Vec::new();
+	let mut count_size_a: Vec<(ASize, u8)> = Vec::new();
+	let mut count_size_b: Vec<(BSize, u8)> = Vec::new();
 
+	//sort products by size and pick up information: identifier, size
 	for product in products {
 		match product.size {
 			SizePaper::A(asize) => {
@@ -157,7 +160,31 @@ fn get_imposition_pattern(_machine_size: SizeBan, products: Vec<Product>) /*-> V
 		}
 	}
 
-	println!("{:?}\n{:?}",sort_size_a, sort_size_b);
+	//count number of each size
+	for sa in sort_size_a {
+		let mut exist = false;
+		for ca in &mut count_size_a {
+			if sa.1 == ca.0 {
+				(ca.1) += 1;
+				exist = true;
+				break;
+			}
+		}
+		if !exist { count_size_a.push((sa.1, 1)) }
+	}
+	for sb in sort_size_b {
+		let mut exist = false;
+		for cb in &mut count_size_b {
+			if sb.1 == cb.0 {
+				(cb.1) += 1;
+				exist = true;
+				break;
+			}
+		}
+		if !exist { count_size_b.push((sb.1, 1)) }
+	}
+
+	println!("{:?}\n{:?}",count_size_a, count_size_b);
 }
 
 //fn get_imposition(machine_size: Size, products: Vec<Product>) -> Vec<Vec<u8>> {}
@@ -177,7 +204,7 @@ fn main() {
 			size: SizePaper::A(ASize::A2),
 		},
 		Product {
-			identifier: 3,
+			identifier: 2,
 			num: 20000,
 			color: 4,
 			size: SizePaper::A(ASize::A3),
