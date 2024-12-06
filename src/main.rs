@@ -14,33 +14,47 @@ fn comb(a:u64, b:u64) -> u64 {
 	fact(a)/(fact(a-b)*fact(b))
 }
 
+
 #[derive(Debug)]
 #[allow(dead_code)]
-enum SizePaper {
+enum ASize {
 	A1,
 	A2,
 	A3,
 	A4,
-
+}
+#[derive(Debug)]
+#[allow(dead_code)]
+enum BSize {
 	B1,
 	B2,
 	B3,
 	B4,
 	B5,
 }
+
+#[derive(Debug)]
+#[allow(dead_code)]
+enum SizePaper {
+	A(ASize),
+	B(BSize),
+}
 impl SizePaper {
 	fn as_size(&self) -> (u32, u32) {
 		match self {
-			SizePaper::A1 => (594,841),
-			SizePaper::A2 => (420,594),
-			SizePaper::A3 => (297,420),
-			SizePaper::A4 => (210,297),
-
-			SizePaper::B1 => (728,1030),
-			SizePaper::B2 => (515,728),
-			SizePaper::B3 => (364,515),
-			SizePaper::B4 => (257,364),
-			SizePaper::B5 => (182,257),
+			SizePaper::A(asize) => match asize {
+				ASize::A1 => (594,841),
+				ASize::A2 => (420,594),
+				ASize::A3 => (297,420),
+				ASize::A4 => (210,297),
+			},
+			SizePaper::B(bsize) => match bsize {
+				BSize::B1 => (728,1030),
+				BSize::B2 => (515,728),
+				BSize::B3 => (364,515),
+				BSize::B4 => (257,364),
+				BSize::B5 => (182,257),
+			},
 		}
 	}
 }
@@ -119,9 +133,8 @@ fn print_schedule(schedule: Vec<u8>, kind_of_product: u8) {
 
 //Pattern of possible number of impositions for each machine size
 //fn get_imposition_pattern(_machine_size: SizeBan, products: Vec<Product>) -> Vec<Vec<u8>> {
-//	let mut size_a: Vec<Product> = Vec::new();
-//	let mut size_b: Vec<Product> = Vec::new();
-
+//	let mut size_a: Vec<u8> = Vec::new();
+//	let mut size_b: Vec<u8> = Vec::new();
 //}
 
 //fn get_imposition(machine_size: Size, products: Vec<Product>) -> Vec<Vec<u8>> {}
@@ -132,19 +145,19 @@ fn main() {
 			identifier: 0,
 			num: 25000,
 			color: 4,
-			size: SizePaper::A4
+			size: SizePaper::A(ASize::A4)
 		},
 		Product {
 			identifier: 1,
 			num: 10000,
 			color: 2,
-			size: SizePaper::A2,
+			size: SizePaper::A(ASize::A2),
 		},
 		Product {
 			identifier: 2,
 			num: 20000,
 			color: 4,
-			size: SizePaper::A3,
+			size: SizePaper::A(ASize::A3),
 		}
 	];
 	let mac: Vec<Machine> = vec![
