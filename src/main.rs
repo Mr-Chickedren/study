@@ -77,6 +77,7 @@ impl SizeBan {
 #[derive(Debug)]
 #[allow(dead_code)]
 struct Product {
+	identifier: u8,
 	num: u32,
 	color: u8,
 	size: SizePaper,
@@ -117,29 +118,35 @@ fn print_schedule(schedule: Vec<u8>, kind_of_product: u8) {
 }
 
 //Pattern of possible number of impositions for each machine size
-//fn get_imposition_pattern(machine_size: Size) -> Vec<Vec<u8>> {}
+//fn get_imposition_pattern(_machine_size: SizeBan, products: Vec<Product>) -> Vec<Vec<u8>> {
+//	let mut size_a: Vec<Product> = Vec::new();
+//	let mut size_b: Vec<Product> = Vec::new();
+
+//}
 
 //fn get_imposition(machine_size: Size, products: Vec<Product>) -> Vec<Vec<u8>> {}
 
 fn main() {
 	let pro: Vec<Product> = vec![
 		Product {
+			identifier: 0,
 			num: 25000,
 			color: 4,
 			size: SizePaper::A4
 		},
 		Product {
+			identifier: 1,
 			num: 10000,
 			color: 2,
 			size: SizePaper::A2,
 		},
 		Product {
+			identifier: 2,
 			num: 20000,
 			color: 4,
 			size: SizePaper::A3,
 		}
 	];
-
 	let mac: Vec<Machine> = vec![
 		Machine {
 			color: 2,
