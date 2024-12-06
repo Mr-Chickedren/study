@@ -132,59 +132,43 @@ fn print_schedule(schedule: Vec<u8>, kind_of_product: u8) {
 }
 
 //Pattern of possible number of impositions for each machine size
-fn get_imposition_pattern(_machine_size: SizeBan, products: Vec<Product>) /*-> Vec<Vec<u8>>*/ {
-	let mut sort_size_a: Vec<(u8, ASize)> = Vec::new();
-	let mut sort_size_b: Vec<(u8, BSize)> = Vec::new();
-	let mut count_size_a: Vec<(ASize, u8)> = Vec::new();
-	let mut count_size_b: Vec<(BSize, u8)> = Vec::new();
+fn get_imposition_patternn(_machine_size: SizeBan, products: Vec<Product>) /*-> Vec<Vec<u8>>*/ {
+	let mut sort_size_a: Vec<(ASize, Vec<u8>)> = Vec::new();
+	let mut sort_size_b: Vec<(BSize, Vec<u8>)> = Vec::new();
 
-	//sort products by size and pick up information: identifier, size
+	//sort products by size and group identifier together based on size
 	for product in products {
 		match product.size {
 			SizePaper::A(asize) => {
 				let mut max = sort_size_a.len();
 				for i in (0..sort_size_a.len()).rev() {
-					if sort_size_a[i].1 < asize { max = i }
+					if sort_size_a[i].0 <= asize { max = i }
 				}
-				if max == sort_size_a.len() { sort_size_a.push((product.identifier, asize)) }
-				else { sort_size_a.insert(max, (product.identifier, asize)) }
+				if max == sort_size_a.len() { sort_size_a.push((asize, vec![product.identifier])) }
+				else {
+					if sort_size_a[max].0 == asize {
+						(sort_size_a[max].1).push(product.identifier);
+					}
+					else { sort_size_a.insert(max, (asize, vec![product.identifier])) }
+				}
 			},
 			SizePaper::B(bsize) => {
 				let mut max = sort_size_b.len();
 				for i in (0..sort_size_b.len()).rev() {
-					if sort_size_b[i].1 < bsize { max = i }
+					if sort_size_b[i].0 <= bsize { max = i }
 				}
-				if max == sort_size_b.len() { sort_size_b.push((product.identifier, bsize)) }
-				else { sort_size_b.insert(max, (product.identifier, bsize)) }
+				if max == sort_size_b.len() { sort_size_b.push((bsize, vec![product.identifier])) }
+				else {
+					if sort_size_b[max].0 == bsize {
+						(sort_size_b[max].1).push(product.identifier);
+					}
+					else { sort_size_b.insert(max, (bsize, vec![product.identifier])) }
+				}
 			},
 		}
 	}
 
-	//count number of each size
-	for sa in sort_size_a {
-		let mut exist = false;
-		for ca in &mut count_size_a {
-			if sa.1 == ca.0 {
-				(ca.1) += 1;
-				exist = true;
-				break;
-			}
-		}
-		if !exist { count_size_a.push((sa.1, 1)) }
-	}
-	for sb in sort_size_b {
-		let mut exist = false;
-		for cb in &mut count_size_b {
-			if sb.1 == cb.0 {
-				(cb.1) += 1;
-				exist = true;
-				break;
-			}
-		}
-		if !exist { count_size_b.push((sb.1, 1)) }
-	}
-
-	println!("{:?}\n{:?}",count_size_a, count_size_b);
+	println!("{:?}\n{:?}",sort_size_a,sort_size_b);
 }
 
 //fn get_imposition(machine_size: Size, products: Vec<Product>) -> Vec<Vec<u8>> {}
@@ -232,5 +216,5 @@ fn main() {
 	//let impos: Vec<Vec<u8>> = get_imposition();
 	//println!("{:?}",impos);
 
-	get_imposition_pattern(SizeBan::KK1, pro);
+	get_imposition_patternn(SizeBan::KK1, pro);
 }
