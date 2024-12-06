@@ -15,22 +15,22 @@ fn comb(a:u64, b:u64) -> u64 {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd)]
 #[allow(dead_code)]
 enum ASize {
-	A1,
-	A2,
-	A3,
 	A4,
+	A3,
+	A2,
+	A1,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd)]
 #[allow(dead_code)]
 enum BSize {
-	B1,
-	B2,
-	B3,
-	B4,
 	B5,
+	B4,
+	B3,
+	B2,
+	B1,
 }
 
 #[derive(Debug)]
@@ -132,10 +132,33 @@ fn print_schedule(schedule: Vec<u8>, kind_of_product: u8) {
 }
 
 //Pattern of possible number of impositions for each machine size
-//fn get_imposition_pattern(_machine_size: SizeBan, products: Vec<Product>) -> Vec<Vec<u8>> {
-//	let mut size_a: Vec<u8> = Vec::new();
-//	let mut size_b: Vec<u8> = Vec::new();
-//}
+fn get_imposition_pattern(_machine_size: SizeBan, products: Vec<Product>) /*-> Vec<Vec<u8>>*/ {
+	let mut sort_size_a: Vec<(u8, ASize)> = Vec::new();
+	let mut sort_size_b: Vec<(u8, BSize)> = Vec::new();
+
+	for product in products {
+		match product.size {
+			SizePaper::A(asize) => {
+				let mut max = sort_size_a.len();
+				for i in (0..sort_size_a.len()).rev() {
+					if sort_size_a[i].1 < asize { max = i }
+				}
+				if max == sort_size_a.len() { sort_size_a.push((product.identifier, asize)) }
+				else { sort_size_a.insert(max, (product.identifier, asize)) }
+			},
+			SizePaper::B(bsize) => {
+				let mut max = sort_size_b.len();
+				for i in (0..sort_size_b.len()).rev() {
+					if sort_size_b[i].1 < bsize { max = i }
+				}
+				if max == sort_size_b.len() { sort_size_b.push((product.identifier, bsize)) }
+				else { sort_size_b.insert(max, (product.identifier, bsize)) }
+			},
+		}
+	}
+
+	println!("{:?}\n{:?}",sort_size_a, sort_size_b);
+}
 
 //fn get_imposition(machine_size: Size, products: Vec<Product>) -> Vec<Vec<u8>> {}
 
@@ -154,7 +177,7 @@ fn main() {
 			size: SizePaper::A(ASize::A2),
 		},
 		Product {
-			identifier: 2,
+			identifier: 3,
 			num: 20000,
 			color: 4,
 			size: SizePaper::A(ASize::A3),
@@ -181,4 +204,6 @@ fn main() {
 
 	//let impos: Vec<Vec<u8>> = get_imposition();
 	//println!("{:?}",impos);
+
+	get_imposition_pattern(SizeBan::KK1, pro);
 }
