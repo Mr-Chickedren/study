@@ -14,47 +14,33 @@ fn comb(a:u64, b:u64) -> u64 {
 	fact(a)/(fact(a-b)*fact(b))
 }
 
-
 #[derive(Debug, PartialEq, PartialOrd)]
 #[allow(dead_code)]
-enum ASize {
+enum SizePaper {
 	A4,
 	A3,
 	A2,
 	A1,
-}
-#[derive(Debug, PartialEq, PartialOrd)]
-#[allow(dead_code)]
-enum BSize {
+
 	B5,
 	B4,
 	B3,
 	B2,
 	B1,
 }
-
-#[derive(Debug)]
-#[allow(dead_code)]
-enum SizePaper {
-	A(ASize),
-	B(BSize),
-}
 impl SizePaper {
 	fn as_size(&self) -> (u32, u32) {
 		match self {
-			SizePaper::A(asize) => match asize {
-				ASize::A1 => (594,841),
-				ASize::A2 => (420,594),
-				ASize::A3 => (297,420),
-				ASize::A4 => (210,297),
-			},
-			SizePaper::B(bsize) => match bsize {
-				BSize::B1 => (728,1030),
-				BSize::B2 => (515,728),
-				BSize::B3 => (364,515),
-				BSize::B4 => (257,364),
-				BSize::B5 => (182,257),
-			},
+			SizePaper::A1 => (594,841),
+			SizePaper::A2 => (420,594),
+			SizePaper::A3 => (297,420),
+			SizePaper::A4 => (210,297),
+
+			SizePaper::B1 => (728,1030),
+			SizePaper::B2 => (515,728),
+			SizePaper::B3 => (364,515),
+			SizePaper::B4 => (257,364),
+			SizePaper::B5 => (182,257),
 		}
 	}
 }
@@ -85,6 +71,10 @@ impl SizeBan {
 			SizeBan::SR4 => (394,545),
 			SizeBan::SR8 => (272,394),
 		}
+	}
+	//return how many pieces fit vertically by (incorrect direction, reverse direction)
+	fn fit_vertically(&self, paper_size: (u32, u32), margin: u32) -> (u32, u32){
+		((self.as_size()).0 / (paper_size.0 + (margin*2)), (self.as_size()).0 / (paper_size.1 + (margin*2)))
 	}
 }
 
@@ -133,42 +123,50 @@ fn print_schedule(schedule: Vec<u8>, kind_of_product: u8) {
 
 //Pattern of possible number of impositions for each machine size
 fn get_imposition_patternn(_machine_size: SizeBan, products: Vec<Product>) /*-> Vec<Vec<u8>>*/ {
-	let mut sort_size_a: Vec<(ASize, Vec<u8>)> = Vec::new();
-	let mut sort_size_b: Vec<(BSize, Vec<u8>)> = Vec::new();
+	let mut sort_size_a: Vec<(SizePaper, Vec<u8>)> = Vec::new();
+	let mut sort_size_b: Vec<(SizePaper, Vec<u8>)> = Vec::new();
 
 	//sort products by size and group identifier together based on size
 	for product in products {
 		match product.size {
-			SizePaper::A(asize) => {
+			size if (size == SizePaper::A1) ||
+					  (size == SizePaper::A2) ||
+					  (size == SizePaper::A3) ||
+					  (size == SizePaper::A4) => {
 				let mut max = sort_size_a.len();
 				for i in (0..sort_size_a.len()).rev() {
-					if sort_size_a[i].0 <= asize { max = i }
+					if sort_size_a[i].0 <= size { max = i }
 				}
-				if max == sort_size_a.len() { sort_size_a.push((asize, vec![product.identifier])) }
+				if max == sort_size_a.len() { sort_size_a.push((size, vec![product.identifier])) }
 				else {
-					if sort_size_a[max].0 == asize {
+					if sort_size_a[max].0 == size {
 						(sort_size_a[max].1).push(product.identifier);
 					}
-					else { sort_size_a.insert(max, (asize, vec![product.identifier])) }
+					else { sort_size_a.insert(max, (size, vec![product.identifier])) }
 				}
 			},
-			SizePaper::B(bsize) => {
+			size if (size == SizePaper::B1) ||
+					  (size == SizePaper::B2) ||
+					  (size == SizePaper::B3) ||
+					  (size == SizePaper::B4) ||
+					  (size == SizePaper::B5) => {
 				let mut max = sort_size_b.len();
 				for i in (0..sort_size_b.len()).rev() {
-					if sort_size_b[i].0 <= bsize { max = i }
+					if sort_size_b[i].0 <= size { max = i }
 				}
-				if max == sort_size_b.len() { sort_size_b.push((bsize, vec![product.identifier])) }
+				if max == sort_size_b.len() { sort_size_b.push((size, vec![product.identifier])) }
 				else {
-					if sort_size_b[max].0 == bsize {
+					if sort_size_b[max].0 == size {
 						(sort_size_b[max].1).push(product.identifier);
 					}
-					else { sort_size_b.insert(max, (bsize, vec![product.identifier])) }
+					else { sort_size_b.insert(max, (size, vec![product.identifier])) }
 				}
 			},
+			_ => (),
 		}
 	}
-
 	println!("{:?}\n{:?}",sort_size_a,sort_size_b);
+
 }
 
 //fn get_imposition(machine_size: Size, products: Vec<Product>) -> Vec<Vec<u8>> {}
@@ -179,20 +177,20 @@ fn main() {
 			identifier: 0,
 			num: 25000,
 			color: 4,
-			size: SizePaper::A(ASize::A4)
+			size: SizePaper::A4,
 		},
 		Product {
 			identifier: 1,
 			num: 10000,
 			color: 2,
-			size: SizePaper::A(ASize::A2),
+			size: SizePaper::A2,
 		},
 		Product {
 			identifier: 2,
 			num: 20000,
 			color: 4,
-			size: SizePaper::A(ASize::A3),
-		}
+			size: SizePaper::A3,
+		},
 	];
 	let mac: Vec<Machine> = vec![
 		Machine {
@@ -216,5 +214,7 @@ fn main() {
 	//let impos: Vec<Vec<u8>> = get_imposition();
 	//println!("{:?}",impos);
 
-	get_imposition_patternn(SizeBan::KK1, pro);
+	//get_imposition_patternn(SizeBan::KK1, pro);
+	let test: SizeBan = SizeBan::KK1;
+	println!("{:?}",test.fit_vertically((pro[0].size).as_size(), 10));
 }
