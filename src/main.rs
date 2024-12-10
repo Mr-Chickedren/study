@@ -14,7 +14,7 @@ fn comb(a:u64, b:u64) -> u64 {
 	fact(a)/(fact(a-b)*fact(b))
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 #[allow(dead_code)]
 enum SizePaper {
 	A4,
@@ -73,8 +73,12 @@ impl SizeBan {
 		}
 	}
 	//return how many pieces fit vertically by (incorrect direction, reverse direction)
-	fn fit_vertically(&self, paper_size: (u32, u32), margin: u32) -> (u32, u32){
-		((self.as_size()).0 / (paper_size.0 + (margin*2)), (self.as_size()).0 / (paper_size.1 + (margin*2)))
+	fn fit_vertically(&self, paper_size: SizePaper, margin: u32) -> (u32, u32){
+		let ban_ver = (self.as_size()).0;
+		let pap_ver = (paper_size.as_size()).0;
+		let pap_hor = (paper_size.as_size()).1;
+
+		(ban_ver / (pap_ver + (margin*2)), ban_ver / (pap_hor + (margin*2)))
 	}
 }
 
@@ -216,5 +220,5 @@ fn main() {
 
 	//get_imposition_patternn(SizeBan::KK1, pro);
 	let test: SizeBan = SizeBan::KK1;
-	println!("{:?}",test.fit_vertically((pro[0].size).as_size(), 10));
+	println!("{:?}",test.fit_vertically(pro[0].size.clone(), 10));
 }
