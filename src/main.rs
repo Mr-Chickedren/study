@@ -1,11 +1,71 @@
-#[derive(Debug)]
-struct Product {
-	num: u32,
-	color: u8,
-	size: String,
+enum Relationship {
+	Greater,
+	Less,
+	Equal,
+	Error,
 }
 
-#[derive(Debug)]
+struct Format {
+	name: String,
+	size: (u32,u32),
+}
+
+struct FormatList {
+	series_list: Vec<String>,
+	dict: Vec<Vec<Format>>,
+}
+impl FormatList {
+	fn new() -> Self {
+		Self { series_list: Vec::new(), dict: Vec::new() }
+	}
+	fn comp(&self, a: String, b: String) -> Relationship {
+	}
+	fn add_series(&mut self, series: &str) {
+		let mut exist = false;
+		for i in 0..self.series_list.len() {
+			if series.to_string() == self.series_list[i] { exist = true }
+		}
+		if !exist {
+			self.series_list.push(series.to_string());
+			self.dict.push(Vec::new());
+		}
+	}
+	fn add_format(&mut self, format: &str, size: (u32,u32)) {
+		let mut series = String::new();
+		let mut exist = false;
+		let mut ind = 0;
+		for ch in format.chars() {
+			if !ch.is_digit(10) { series.push(ch) }
+			else { break }
+		}
+		for i in 0..self.series_list.len() {
+			if series == self.series_list[i] {
+				exist = true;
+				ind = i;
+				break;
+			}
+		}
+		if exist { self.dict[ind].push(Format{ name: format.to_string(), size: size }) }
+		else { println!("Error: not exist \"{}\". Please excute \"add_series()\"", format) }
+	}
+	fn show(&self) {
+		println!("*** Format_List ***");
+		for i in 0..self.dict.len() {
+			println!("#{}", self.series_list[i]);
+			for j in 0..self.dict[i].len() {
+				println!(" -{:>4} {:4}*{:4}", self.dict[i][j].name, self.dict[i][j].size.0, self.dict[i][j].size.1);
+			}
+		}
+		print!("\n");
+	}
+}
+
+struct Product {
+	size: String,
+	color: u8,
+	num: u32,
+}
+
 struct Products {
 	product: Vec<Product>,
 }
@@ -13,24 +73,68 @@ impl Products {
 	fn new() -> Self {
 		Self { product: Vec::new() }
 	}
-	fn addition(&mut self, num: u32, color: u8, size: String) {
-		self.product.push(Product{ num: num, color: color, size: size });
+	fn add(&mut self, size: &str, color: u8, num: u32,) {
+		self.product.push(Product{ size: size.to_string(), color: color, num: num });
+	}
+	fn show(&self) {
+		println!("*** Products ***");
+		for i in 0..self.product.len() {
+			println!("{:>2}:{:>4} {:1} {}", i, self.product[i].size, self.product[i].color, self.product[i].num);
+		}
+		print!("\n");
 	}
 }
 
-#[derive(Debug)]
 struct Machine {
+	size: String,
 	color: u8,
-	size: (String, usize),
 	speed: u32,
 }
 
-fn main() {
-	let plist = Products::new();
-	plist.addition(25000, 4, "A4");
-	plist.addition(10000, 2, "A2");
-	plist.addition(20000, 4, "A3");
-	plist.addition(20000, 3, "A3");
+struct Machines {
+	machine: Vec<Machine>,
+}
+impl Machines {
+	fn new() -> Self {
+		Self { machine: Vec::new() }
+	}
+	fn add(&mut self, size: &str, color: u8, speed: u32) {
+		self.machine.push(Machine{ size: size.to_string(), color: color, speed: speed });
+	}
+	fn show(&self) {
+		println!("*** Machines ***");
+		for i in 0..self.machine.len() {
+			println!("{:>2}:{:>4} {:1} {}", i, self.machine[i].size, self.machine[i].color, self.machine[i].speed);
+		}
+		print!("\n");
+	}
+}
 
-	println!("{:?}",plist);
+	
+fn main() {
+	let mut flist = FormatList::new();
+	flist.add_series("A");
+	flist.add_series("B");
+	flist.add_format("A1", (594,841));
+	flist.add_format("A2", (420,594));
+	flist.add_format("A3", (297,420));
+	flist.add_format("A4", (210,297));
+	flist.add_format("B1", (728,1030));
+	flist.add_format("B2", (515,728));
+	flist.add_format("B3", (364,515));
+	flist.add_format("B4", (257,364));
+	flist.add_format("B5", (182,257));
+	flist.show();
+
+	let mut plist = Products::new();
+	plist.add("A4", 4, 25000);
+	plist.add("A2", 2, 10000);
+	plist.add("A3", 4, 20000);
+	plist.add("A3", 3, 20000);
+	plist.show();
+
+	let mut mlist = Machines::new();
+	mlist.add("KK1", 2, 5000);
+	mlist.add("KK2", 4, 5000);
+	mlist.show();
 }
