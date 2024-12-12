@@ -1,3 +1,4 @@
+#[derive(Debug)]
 enum Relationship {
 	Greater,
 	Less,
@@ -19,6 +20,38 @@ impl FormatList {
 		Self { series_list: Vec::new(), dict: Vec::new() }
 	}
 	fn comp(&self, a: String, b: String) -> Relationship {
+		let mut series_a = String::new();
+		let mut series_b = String::new();
+		let mut exist = false;
+		let mut i = 0;
+		let mut size_a = 0;
+		let mut size_b = 0;
+		for ch in a.chars() {
+			if !ch.is_digit(10) { series_a.push(ch) }
+			else { break }
+		}
+		for ch in b.chars() {
+			if !ch.is_digit(10) { series_b.push(ch) }
+			else { break }
+		}
+		for series in self.series_list.clone() {
+			if series == series_a {
+				exist = true;
+				break;
+			}
+			i += 1;
+		}
+		if exist && series_a == series_b {
+			for format in &self.dict[i] {
+				if a == format.name { size_a = format.size.0 * format.size.1 }
+				if b == format.name { size_b = format.size.0 * format.size.1 }
+			}
+			if	size_a == 0 || size_b == 0 { Relationship::Error }
+			else if size_a == size_b { Relationship::Equal }
+			else if size_a > size_b { Relationship::Greater }
+			else { Relationship::Less }
+		}
+		else { Relationship::Error }
 	}
 	fn add_series(&mut self, series: &str) {
 		let mut exist = false;
@@ -137,4 +170,6 @@ fn main() {
 	mlist.add("KK1", 2, 5000);
 	mlist.add("KK2", 4, 5000);
 	mlist.show();
+
+	println!("{:?}",flist.comp("A1".to_string(),"A3".to_string()))
 }
