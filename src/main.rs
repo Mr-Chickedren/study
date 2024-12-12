@@ -106,8 +106,15 @@ impl Products {
 	fn new() -> Self {
 		Self { product: Vec::new() }
 	}
-	fn add(&mut self, size: &str, color: u8, num: u32,) {
-		self.product.push(Product{ size: size.to_string(), color: color, num: num });
+	fn add(&mut self, format_list: &FormatList, size: &str, color: u8, num: u32,) {
+		let mut exist = false;
+		for i in 0..format_list.dict.len() {
+			for j in 0..format_list.dict[i].len() {
+				if format_list.dict[i][j].name == size.to_string() { exist = true; break; }
+			}
+		}
+		if exist { self.product.push(Product{ size: size.to_string(), color: color, num: num }) }
+		else { println!("Error: \"{}\" is not exist. Please excute \"add_format\".", size) }
 	}
 	fn show(&self) {
 		println!("*** Products ***");
@@ -131,8 +138,15 @@ impl Machines {
 	fn new() -> Self {
 		Self { machine: Vec::new() }
 	}
-	fn add(&mut self, size: &str, color: u8, speed: u32) {
-		self.machine.push(Machine{ size: size.to_string(), color: color, speed: speed });
+	fn add(&mut self, format_list: &FormatList, size: &str, color: u8, speed: u32) {
+		let mut exist = false;
+		for i in 0..format_list.dict.len() {
+			for j in 0..format_list.dict[i].len() {
+				if format_list.dict[i][j].name == size.to_string() { exist = true; break; }
+			}
+		}
+		if exist { self.machine.push(Machine{ size: size.to_string(), color: color, speed: speed }) }
+		else { println!("Error: \"{}\" is not exist. Please excute \"add_format\".", size) }
 	}
 	fn show(&self) {
 		println!("*** Machines ***");
@@ -143,6 +157,14 @@ impl Machines {
 	}
 }
 
+struct Category {
+	format: String,
+	product_identifiers: Vec<usize>,
+}
+struct Group {
+	series_list: Vec<String>,
+	dict: Vec<Vec<Category>>,
+}
 	
 fn main() {
 	let mut flist = FormatList::new();
@@ -157,19 +179,25 @@ fn main() {
 	flist.add_format("B3", (364,515));
 	flist.add_format("B4", (257,364));
 	flist.add_format("B5", (182,257));
+	flist.add_format("", ());
+	flist.add_format("", ());
+	flist.add_format("", ());
+	flist.add_format("", ());
+	flist.add_format("", ());
+	flist.add_format("", ());
+	flist.add_format("", ());
+	flist.add_format("", ());
 	flist.show();
 
 	let mut plist = Products::new();
-	plist.add("A4", 4, 25000);
-	plist.add("A2", 2, 10000);
-	plist.add("A3", 4, 20000);
-	plist.add("A3", 3, 20000);
+	plist.add(&flist, "A4", 4, 25000);
+	plist.add(&flist, "A2", 2, 10000);
+	plist.add(&flist, "A3", 4, 20000);
+	plist.add(&flist, "A3", 3, 20000);
 	plist.show();
 
 	let mut mlist = Machines::new();
-	mlist.add("KK1", 2, 5000);
-	mlist.add("KK2", 4, 5000);
+	mlist.add(&flist, "KK1", 2, 5000);
+	mlist.add(&flist, "KK2", 4, 5000);
 	mlist.show();
-
-	println!("{:?}",flist.comp("A1".to_string(),"A3".to_string()))
 }
