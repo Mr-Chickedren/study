@@ -196,9 +196,9 @@ impl Sort {
 						}
 					}
 					if !exist_name {
-						max = 0;
+						max = self.dict[slist_index].len();
 						for dict_index in 0..self.dict[slist_index].len() {
-							if format_list.comp(&products.product[product_index].size, &self.dict[slist_index][dict_index].format) == Relationship::Greater { max = dict_index }
+							if format_list.comp(&products.product[product_index].size, &self.dict[slist_index][dict_index].format) == Relationship::Greater { max = dict_index; break; }
 						}
 						self.dict[slist_index].insert(max, Category{ format: products.product[product_index].size.clone(), product_indexes: vec![product_index] });
 					}
@@ -223,6 +223,39 @@ impl Sort {
 		print!("\n");
 	}
 }
+
+struct Packing {
+	series_list: Vec<String>,
+	list: Vec<Vec<Vec<u8>>>,
+}
+impl Packing {
+	fn new() -> Self {
+		Self { series_list: Vec::new(), list: Vec::new() }
+	}
+	fn pack(&mut self, sort: &Sort) {
+		self.series_list.extend(sort.series_list.clone());
+
+		for series_index in 0..self.series_list.len() {
+			self.list.push(Vec::new());
+
+			//self.list[series_index].push(/*vec![@,@,@,@]*/);
+		}
+	}
+	fn show(&self) {
+		println!("{:?}", self.series_list);
+
+		for series_index in 0..self.series_list.len() {
+			println!("#{}", self.series_list[series_index]);
+			//for i in 0..self.list[series_index].len() {
+			//	println!("{:?}", self.list[series_index][i]);
+			//}
+		}
+
+		print!("\n");
+	}
+}
+
+//struct Imposition {}
 	
 fn main() {
 	let mut flist = FormatList::new();
@@ -250,10 +283,15 @@ fn main() {
 	flist.show();
 
 	let mut plist = Products::new();
+	plist.add(&flist, "A3", 4, 25000);
 	plist.add(&flist, "A4", 4, 25000);
 	plist.add(&flist, "A2", 2, 10000);
 	plist.add(&flist, "A3", 4, 20000);
 	plist.add(&flist, "A3", 3, 20000);
+	plist.add(&flist, "B1", 3, 20000);
+	plist.add(&flist, "B4", 3, 20000);
+	plist.add(&flist, "B3", 3, 20000);
+	plist.add(&flist, "B3", 3, 20000);
 	plist.show();
 
 	let mut mlist = Machines::new();
@@ -264,4 +302,8 @@ fn main() {
 	let mut products_sort = Sort::new();
 	products_sort.sort(&flist, &plist);
 	products_sort.show();
+
+	let mut pk = Packing::new();
+	pk.pack(&products_sort);
+	pk.show();
 }
