@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(PartialEq)]
 enum Relationship {
 	Greater,
 	Less,
@@ -19,7 +19,7 @@ impl FormatList {
 	fn new() -> Self {
 		Self { series_list: Vec::new(), dict: Vec::new() }
 	}
-	fn comp(&self, a: String, b: String) -> Relationship {
+	fn comp(&self, a: &String, b: &String) -> Relationship {
 		let mut series_a = String::new();
 		let mut series_b = String::new();
 		let mut exist = false;
@@ -43,8 +43,8 @@ impl FormatList {
 		}
 		if exist && series_a == series_b {
 			for format in &self.dict[i] {
-				if a == format.name { size_a = format.size.0 * format.size.1 }
-				if b == format.name { size_b = format.size.0 * format.size.1 }
+				if *a == format.name { size_a = format.size.0 * format.size.1 }
+				if *b == format.name { size_b = format.size.0 * format.size.1 }
 			}
 			if	size_a == 0 || size_b == 0 { Relationship::Error }
 			else if size_a == size_b { Relationship::Equal }
@@ -159,11 +159,69 @@ impl Machines {
 
 struct Category {
 	format: String,
-	product_identifiers: Vec<usize>,
+	product_indexes: Vec<usize>,
 }
-struct Group {
+struct Sort {
 	series_list: Vec<String>,
 	dict: Vec<Vec<Category>>,
+}
+impl Sort {
+	fn new() -> Self {
+		Self { series_list: Vec::new(), dict: Vec::new() }
+	}
+	fn sort(&mut self, format_list: &FormatList, products: &Products) {
+		let mut series = String::new();
+		let mut exist_series = false;
+		let mut exist_name = false;
+		let mut max = 0;
+
+		for product_index in 0..products.product.len() {
+			series = String::new();
+			exist_series = false;
+
+			for ch in products.product[product_index].size.clone().chars() {
+				if !ch.is_digit(10) { series.push(ch) }
+				else { break }
+			}
+			for slist_index in 0..self.series_list.len() {
+				if self.series_list[slist_index] == series {
+					exist_series = true;
+
+					exist_name = false;
+					for dict_index in 0..self.dict[slist_index].len() {
+						if self.dict[slist_index][dict_index].format == products.product[product_index].size.clone() {
+							exist_name = true;
+							self.dict[slist_index][dict_index].product_indexes.push(product_index);
+							break;
+						}
+					}
+					if !exist_name {
+						max = 0;
+						for dict_index in 0..self.dict[slist_index].len() {
+							if format_list.comp(&products.product[product_index].size, &self.dict[slist_index][dict_index].format) == Relationship::Greater { max = dict_index }
+						}
+						self.dict[slist_index].insert(max, Category{ format: products.product[product_index].size.clone(), product_indexes: vec![product_index] });
+					}
+
+					break;
+				}
+			}
+			if !exist_series {
+				self.series_list.push(series);
+				self.dict.push(vec![Category{ format: products.product[product_index].size.clone(), product_indexes: vec![product_index] }]);
+			}
+		}
+	}
+	fn show(&self) {
+		println!("*** Products_Sort ***");
+		for i in 0..self.dict.len() {
+			println!("#{}", self.series_list[i]);
+			for j in 0..self.dict[i].len() {
+				println!(" -{:>4} {:?}", self.dict[i][j].format, self.dict[i][j].product_indexes);
+			}
+		}
+		print!("\n");
+	}
 }
 	
 fn main() {
@@ -203,5 +261,7 @@ fn main() {
 	mlist.add(&flist, "KK2", 4, 5000);
 	mlist.show();
 
-	
+	let mut products_sort = Sort::new();
+	products_sort.sort(&flist, &plist);
+	products_sort.show();
 }
