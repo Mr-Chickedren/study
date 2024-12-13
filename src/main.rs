@@ -79,7 +79,7 @@ impl FormatList {
 			}
 		}
 		if exist { self.dict[ind].push(Format{ name: format.to_string(), size: size }) }
-		else { println!("Error: not exist \"{}\". Please excute \"add_series()\"", format) }
+		else { println!("Error: \"{}\" is not exist. Please excute \"add_series()\"", format) }
 	}
 	fn show(&self) {
 		println!("*** Format_List ***");
@@ -170,6 +170,8 @@ fn main() {
 	let mut flist = FormatList::new();
 	flist.add_series("A");
 	flist.add_series("B");
+	flist.add_series("KK");
+	flist.add_series("SR");
 	flist.add_format("A1", (594,841));
 	flist.add_format("A2", (420,594));
 	flist.add_format("A3", (297,420));
@@ -179,14 +181,14 @@ fn main() {
 	flist.add_format("B3", (364,515));
 	flist.add_format("B4", (257,364));
 	flist.add_format("B5", (182,257));
-	flist.add_format("", ());
-	flist.add_format("", ());
-	flist.add_format("", ());
-	flist.add_format("", ());
-	flist.add_format("", ());
-	flist.add_format("", ());
-	flist.add_format("", ());
-	flist.add_format("", ());
+	flist.add_format("KK1", (636,939));
+	flist.add_format("KK2", (469,636));
+	flist.add_format("KK4", (318,469));
+	flist.add_format("KK8", (234,318));
+	flist.add_format("SR1", (788,1091));
+	flist.add_format("SR2", (545,788));
+	flist.add_format("SR4", (394,545));
+	flist.add_format("SR8", (272,394));
 	flist.show();
 
 	let mut plist = Products::new();
@@ -200,4 +202,6 @@ fn main() {
 	mlist.add(&flist, "KK1", 2, 5000);
 	mlist.add(&flist, "KK2", 4, 5000);
 	mlist.show();
+
+	
 }
