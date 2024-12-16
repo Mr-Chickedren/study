@@ -6,6 +6,11 @@ enum Relationship {
 	Error,
 }
 
+enum Direction {
+	Vertical,
+	Horizontal,
+}
+
 struct Format {
 	name: String,
 	size: (u32,u32),
@@ -54,32 +59,52 @@ impl FormatList {
 		else { Relationship::Error }
 	}
 	fn add_series(&mut self, series: &str) {
-		let mut exist = false;
-		for i in 0..self.series_list.len() {
-			if series.to_string() == self.series_list[i] { exist = true }
-		}
-		if !exist {
+		if !series.bytes().any(|b| b.is_ascii_digit()) &&
+			!self.series_list.contains(&series.to_string()) {
 			self.series_list.push(series.to_string());
 			self.dict.push(Vec::new());
+		}
+		else {
+			println!("Error: \"{}\" is already exists. or using numbers in the series-name.", series)
 		}
 	}
 	fn add_format(&mut self, format: &str, size: (u32,u32)) {
 		let mut series = String::new();
-		let mut exist = false;
-		let mut ind = 0;
 		for ch in format.chars() {
 			if !ch.is_digit(10) { series.push(ch) }
 			else { break }
 		}
-		for i in 0..self.series_list.len() {
-			if series == self.series_list[i] {
-				exist = true;
-				ind = i;
-				break;
+		if let Some(series_index) = self.series_list.iter().position(|x| *x == series) {
+			let mut max = self.dict[series_index].len();
+			for i in 0..self.dict[series_index].len(){
+				if self.dict[series_index][i].size.0*self.dict[series_index][i].size.1 < size.0*size.1 { max = i; break; }
+			}
+			self.dict[series_index].insert(max, Format{ name: format.to_string(), size: size });
+		}
+		else { println!("Error: \"{}\" is not exists. Please excute \"add_series()\"", format) }
+	}
+	fn fit(&self, machine_size: &String, input_direction: Direction, format: &String, product_direction: Direction, margin: u32) -> u32 {
+		let mut ms = (0,0);
+		let mut fs = (0,0);
+		for i in 0..self.dict.len() {
+			for j in 0..self.dict[i].len() {
+				if self.dict[i][j].name == *machine_size { ms =  self.dict[i][j].size }
+				if self.dict[i][j].name == *format { fs =  self.dict[i][j].size }
 			}
 		}
-		if exist { self.dict[ind].push(Format{ name: format.to_string(), size: size }) }
-		else { println!("Error: \"{}\" is not exist. Please excute \"add_series()\"", format) }
+
+		if fs == (0,0) { return 0 }
+		
+		match input_direction {
+			Direction::Vertical => match product_direction {
+				Direction::Vertical => (ms.0 / (fs.1 + (2*margin))) as u32,
+				Direction::Horizontal => (ms.0 / (fs.0 + (2*margin))) as u32,
+			},
+			Direction::Horizontal => match product_direction {
+				Direction::Vertical => (ms.1 / (fs.0 + (2*margin))) as u32,
+				Direction::Horizontal => (ms.1 / (fs.1 + (2*margin))) as u32,
+			},
+		}
 	}
 	fn show(&self) {
 		println!("*** Format_List ***");
@@ -212,6 +237,17 @@ impl Sort {
 			}
 		}
 	}
+	fn put_sizes(&self, series: &String) -> Vec<String> {
+		let pos = self.series_list.iter().position(|x| *x == *series);
+		let mut sizes = Vec::new();
+		match pos {
+			Some(index) => {
+				for i in 0..self.dict[index].len() { sizes.push(self.dict[index][i].format.clone()) }
+			},
+			None => { return Vec::new() }
+		}
+		sizes
+	}
 	fn show(&self) {
 		println!("*** Products_Sort ***");
 		for i in 0..self.dict.len() {
@@ -224,32 +260,47 @@ impl Sort {
 	}
 }
 
+struct Pack {
+	machine_size: String,
+	series_name: String,
+	illustration: Vec<u8>,
+}
 struct Packing {
-	series_list: Vec<String>,
-	list: Vec<Vec<Vec<u8>>>,
+	list: Vec<Pack>,
 }
 impl Packing {
 	fn new() -> Self {
-		Self { series_list: Vec::new(), list: Vec::new() }
-	}
-	fn pack(&mut self, sort: &Sort) {
-		self.series_list.extend(sort.series_list.clone());
+		Self { list: Vec::new() }
+	}/*
+	fn pack(&mut self, format_list: &FormatList, mlist: &Machines, sort: &Sort, margin: u32) {
+		for machine_index in 0..mlist.machine.len() {
+			for series_index in 0..sort.series_list.len() {
+				let mut fit_ver = 0;
+				println!("{}:{}:Horizontal", mlist.machine[machine_index].size, sort.series_list[series_index]);
 
-		for series_index in 0..self.series_list.len() {
-			self.list.push(Vec::new());
+				for i in 0..sort.dict[series_index].len() {
+					let mut ill: Vec<u8> = vec![0; sort.dict[series_index].len()];
+					fit_ver = format_list.fit(&mlist.machine[machine_index].size, Direction::Vertical, &sort.dict[series_index][i].format, Direction::Horizontal, margin);
+					ill[i] = (fit_ver * format_list.fit(&mlist.machine[machine_index].size, Direction::Horizontal, &sort.dict[series_index][i].format, Direction::Horizontal, margin)) as u8;
+					if ill[i] != 0 {
+						self.list.push(Pack {machine_size: mlist.machine[machine_index].size.clone(), series_name: sort.series_list[series_index].clone(), illustration: ill.clone()});
+						println!("{:?}",ill.clone());
+					}
 
-			//self.list[series_index].push(/*vec![@,@,@,@]*/);
+					while ill.iter().sum::<u8>() != ill[sort.dict[series_index].len() - 1] {
+						if (ill[i] - fit_ver as u8) == 0 { break }
+						else if let Some(dg_index) = sort.put_sizes(&sort.series_list[series_index]).iter().position(|&x| x == /* downgrade &sort.dict[series_index][i].format*/) {
+							
+						}
+						else { break }
+					}
+				}
+
+				//self.list.push(Pack {machine_size: mlist.machine[machine_index].size.clone(), series_name: sort.series_list[series_index].clone(), illustration: ill.clone()});
+			}
 		}
-	}
+	}*/
 	fn show(&self) {
-		println!("{:?}", self.series_list);
-
-		for series_index in 0..self.series_list.len() {
-			println!("#{}", self.series_list[series_index]);
-			//for i in 0..self.list[series_index].len() {
-			//	println!("{:?}", self.list[series_index][i]);
-			//}
-		}
 
 		print!("\n");
 	}
@@ -304,6 +355,6 @@ fn main() {
 	products_sort.show();
 
 	let mut pk = Packing::new();
-	pk.pack(&products_sort);
-	pk.show();
+	//pk.pack(&flist, &mlist, &products_sort, 10);
+	//pk.show();
 }
