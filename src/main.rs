@@ -60,6 +60,13 @@ impl FormatList {
 		}
 		else { Relationship::Error }
 	}
+	fn downgrade(&self, size: &String) -> Option<String> {
+		if let Some((index, row)) = self.dict.iter().find_map(|row| { row.iter().position(|x| x.name == *size).map(|j| (j, row))}) {
+			if index != row.len()-1 { Some(row[index+1].name.clone()) }
+			else { None }
+		}
+		else { None }
+	}
 	fn show(&self) {
 		println!("*** Format_List ***");
 		for i in 0..self.dict.len() {
@@ -125,7 +132,7 @@ impl Machines {
 }
 
 struct Tally {
-	data: Vec<Vec<(String, u8)>>
+	data: Vec<Vec<(String, u8)>>,
 }
 impl Tally {
 	fn new() -> Self {
@@ -149,6 +156,18 @@ impl Tally {
 			}
 			print!("\n");
 		}
+	}
+}
+
+struct Tessellations {
+	pattern: Vec<Vec<Vec<u8>>>,
+}
+impl Tessellations {
+	fn new() -> Self {
+		Self{ pattern: Vec::new() }
+	}
+	fn pack(&mut self, flist: &FormatList, (m_ver,m_hor): (u32,u32), (p_ver,P_hor): (u32,u32)) {
+		()
 	}
 }
 	
