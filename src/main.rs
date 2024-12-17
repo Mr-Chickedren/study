@@ -6,11 +6,7 @@ enum Relationship {
 	Error,
 }
 
-enum Direction {
-	Vertical,
-	Horizontal,
-}
-
+#[derive(Debug)]
 struct Format {
 	name: String,
 	size: (u32,u32),
@@ -65,6 +61,10 @@ impl FormatList {
 			if index != row.len()-1 { Some(row[index+1].name.clone()) }
 			else { None }
 		}
+		else { None }
+	}
+	fn put_size(&self, name: &String) -> Option<(u32,u32)> {
+		if let Some(format) = self.dict.iter().flatten().find(|x| x.name == *name) { Some(format.size) }
 		else { None }
 	}
 	fn show(&self) {
@@ -166,8 +166,8 @@ impl Tessellations {
 	fn new() -> Self {
 		Self{ pattern: Vec::new() }
 	}
-	fn pack(&mut self, flist: &FormatList, (m_ver,m_hor): (u32,u32), (p_ver,P_hor): (u32,u32)) {
-		()
+	fn pack(&mut self, flist: &FormatList, (m_short,m_long): &(u32,u32), input_product: &String) {
+		println!("[{},{}] <- {}", m_short, m_long, input_product);
 	}
 }
 	
@@ -217,4 +217,6 @@ fn main() {
 	tally.count(&flist, &plist);
 	tally.show();
 
+	let mut tess = Tessellations::new();
+	tess.pack(&flist, &(636,939), &"A2".to_string());
 }
