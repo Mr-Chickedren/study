@@ -6,6 +6,12 @@ enum Relationship {
 	Error,
 }
 
+#[derive(PartialEq)]
+enum Direction {
+	Correct,
+	Reverse,
+}
+
 #[derive(Debug)]
 struct Format {
 	name: String,
@@ -166,8 +172,33 @@ impl Tessellations {
 	fn new() -> Self {
 		Self{ pattern: Vec::new() }
 	}
-	fn pack(&mut self, flist: &FormatList, (m_short,m_long): &(u32,u32), input_product: &String) {
-		println!("[{},{}] <- {}", m_short, m_long, input_product);
+	fn pack(&mut self, flist: &FormatList, (m_short,m_long): &(u32,u32), input_products: &Vec<String>, index: usize, margin: u32, dir: Direction, mut result: Vec<u8>) {
+		let mut fit_short: u32 = 0;
+
+		if let Some(p_size) = flist.put_size(&input_products[index]) {
+			match dir {
+				//under construction
+				Direction::Correct => {
+					fit_short = *m_short / (p_size.0+(2*margin));
+					if fit_short != 0 && p_size.1+(2*margin) < *m_long {
+						result[index] += fit_short as u8;
+						println!("[{},{}] <- {}*{}", m_short, m_long, input_products[index], fit_short);
+						self.pack(flist, &(*m_short,m_long-p_size.1+(2*margin)), input_products, index, margin, dir, result.clone());
+					}
+					else { println!("{:?}",result) }
+				},
+				//ok
+				Direction::Reverse => {
+					fit_short = *m_short / (p_size.1+(2*margin));
+					if fit_short != 0 && p_size.0+(2*margin) < *m_long {
+						result[index] += fit_short as u8;
+						println!("[{},{}] <- {}*{}", m_short, m_long, input_products[index], fit_short);
+						self.pack(flist, &(*m_short,m_long-p_size.0+(2*margin)), input_products, index, margin, dir, result.clone());
+					}
+					else { println!("{:?}",result) }
+				},
+			}
+		}
 	}
 }
 	
@@ -218,5 +249,5 @@ fn main() {
 	tally.show();
 
 	let mut tess = Tessellations::new();
-	tess.pack(&flist, &(636,939), &"A2".to_string());
+	tess.pack(&flist, &(636,939), &vec!["A2".to_string(),"A3".to_string(),"A4".to_string()], 2, 10, Direction::Reverse, vec![0;3]);
 }
