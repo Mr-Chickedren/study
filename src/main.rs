@@ -6,7 +6,7 @@ enum Relationship {
 	Error,
 }
 
-#[derive(PartialEq,Debug)]
+#[derive(PartialEq,Debug,Clone)]
 enum Direction {
 	Correct,
 	Reverse,
@@ -166,7 +166,7 @@ impl Tally {
 }
 
 struct Tessellations {
-	pattern: Vec<Vec<Vec<u8>>>,
+	pattern: Vec<Vec<Vec<Vec<u8>>>>,
 	stage: Vec<Vec<u8>>,
 }
 impl Tessellations {
@@ -215,18 +215,43 @@ impl Tessellations {
 		}
 	}
 	fn pack(&mut self, flist: &FormatList, mlist: &Machines, tally: &Tally, margin: u32) {
+		let direction = vec![Direction::Correct, Direction::Reverse];
+
 		for machine_index in 0..mlist.machine.len() {
+			self.pattern.push(Vec::new());
 			for series_index in 0..tally.data.len() {
+				self.pattern[machine_index].push(Vec::new());
 				let products_size = tally.data[series_index].iter().map(|(x,_)| x.clone()).collect();
 				for product_index in 0..tally.data[series_index].len() {
 					if let Some(m_size) = flist.put_size(&mlist.machine[machine_index].size) {
-						self.pack_recursive(flist, &m_size, &products_size, product_index, margin, Direction::Correct, vec![0; tally.data[series_index].len()]);
+						for dir in &direction {
+							self.pack_recursive(flist, &m_size, &products_size, product_index, margin, dir.clone(), vec![0; tally.data[series_index].len()]);
 
-						for i in 0..self.stage.len() {
-							self.stage[i][product_index]
+							let mut rm_list = Vec::new();
+							for i in 0..self.stage.len() {
+								for j in (i+1)..self.stage.len() {
+									if !rm_list.contains(&i) && !rm_list.contains(&j) && self.stage[i][product_index] == self.stage[j][product_index] {
+										if self.stage[i].iter().sum::<u8>() < self.stage[j].iter().sum() { rm_list.push(i) }
+										else { rm_list.push(j) }
+									}
+								}
+							}
+							rm_list.sort_by(|a,b| b.cmp(a));
+							for rm_index in rm_list { self.stage.remove(rm_index); }
+
+							self.pattern[machine_index][series_index].extend(self.stage.clone());
+							self.stage.clear();
 						}
-						self.stage = Vec::new();
 					}
+				}
+			}
+		}
+	}
+	fn show(&self) {
+		for i in 0..self.pattern.len() {
+			for j in 0..self.pattern[i].len() {
+				for k in 0..self.pattern[i][j].len() {
+					println!("{:?}", self.pattern[i][j][k]);
 				}
 			}
 		}
@@ -280,5 +305,6 @@ fn main() {
 	tally.show();
 
 	let mut tess = Tessellations::new();
-	tess.pack_recursive(&flist, &(636,939), &vec!["A2".to_string(),"A3".to_string(),"A4".to_string()], 0, 10, Direction::Correct, vec![0;3]);
+	tess.pack(&flist, &mlist, &tally, 10);
+	tess.show();
 }
