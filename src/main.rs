@@ -6,7 +6,7 @@ enum Relationship {
 	Error,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq,Debug)]
 enum Direction {
 	Correct,
 	Reverse,
@@ -167,36 +167,67 @@ impl Tally {
 
 struct Tessellations {
 	pattern: Vec<Vec<Vec<u8>>>,
+	stage: Vec<Vec<u8>>,
 }
 impl Tessellations {
 	fn new() -> Self {
-		Self{ pattern: Vec::new() }
+		Self{ pattern: Vec::new(), stage: Vec::new() }
 	}
-	fn pack(&mut self, flist: &FormatList, (m_short,m_long): &(u32,u32), input_products: &Vec<String>, index: usize, margin: u32, dir: Direction, mut result: Vec<u8>) {
+	fn pack_recursive(&mut self, flist: &FormatList, (m_short,m_long): &(u32,u32), input_products: &Vec<String>, index: usize, margin: u32, dir: Direction, mut result: Vec<u8>) {
 		let mut fit_short: u32 = 0;
 
 		if let Some(p_size) = flist.put_size(&input_products[index]) {
 			match dir {
-				//under construction
 				Direction::Correct => {
 					fit_short = *m_short / (p_size.0+(2*margin));
 					if fit_short != 0 && p_size.1+(2*margin) < *m_long {
 						result[index] += fit_short as u8;
-						println!("[{},{}] <- {}*{}", m_short, m_long, input_products[index], fit_short);
-						self.pack(flist, &(*m_short,m_long-p_size.1+(2*margin)), input_products, index, margin, dir, result.clone());
+						//println!("[{},{}] <- {}*{}", m_short, m_long, input_products[index], fit_short);
+						self.pack_recursive(flist, &(*m_short,m_long-p_size.1+(2*margin)), input_products, index, margin, dir, result.clone());
+
+						if index != input_products.len()-1 {
+							if let Some(dg_size) = flist.downgrade(&input_products[index]) {
+								if dg_size == input_products[index+1] {
+									//println!("[{},{}] <- {}*{}", m_short, m_long, input_products[index+1], fit_short);
+									self.pack_recursive(flist, &(*m_short,m_long-p_size.1+(2*margin)), input_products, index+1, margin, Direction::Reverse, result.clone());
+								}
+							}
+						}
 					}
-					else { println!("{:?}",result) }
+					else {
+						println!("{:?}:{:?}", dir, result);
+						self.stage.push(result);
+					}
 				},
-				//ok
 				Direction::Reverse => {
 					fit_short = *m_short / (p_size.1+(2*margin));
 					if fit_short != 0 && p_size.0+(2*margin) < *m_long {
 						result[index] += fit_short as u8;
-						println!("[{},{}] <- {}*{}", m_short, m_long, input_products[index], fit_short);
-						self.pack(flist, &(*m_short,m_long-p_size.0+(2*margin)), input_products, index, margin, dir, result.clone());
+						//println!("[{},{}] <- {}*{}", m_short, m_long, input_products[index], fit_short);
+						self.pack_recursive(flist, &(*m_short,m_long-p_size.0+(2*margin)), input_products, index, margin, dir, result.clone());
 					}
-					else { println!("{:?}",result) }
+					else {
+						println!("{:?}:{:?}", dir, result);
+						self.stage.push(result);
+					}
 				},
+			}
+		}
+	}
+	fn pack(&mut self, flist: &FormatList, mlist: &Machines, tally: &Tally, margin: u32) {
+		for machine_index in 0..mlist.machine.len() {
+			for series_index in 0..tally.data.len() {
+				let products_size = tally.data[series_index].iter().map(|(x,_)| x.clone()).collect();
+				for product_index in 0..tally.data[series_index].len() {
+					if let Some(m_size) = flist.put_size(&mlist.machine[machine_index].size) {
+						self.pack_recursive(flist, &m_size, &products_size, product_index, margin, Direction::Correct, vec![0; tally.data[series_index].len()]);
+
+						for i in 0..self.stage.len() {
+							self.stage[i][product_index]
+						}
+						self.stage = Vec::new();
+					}
+				}
 			}
 		}
 	}
@@ -249,5 +280,5 @@ fn main() {
 	tally.show();
 
 	let mut tess = Tessellations::new();
-	tess.pack(&flist, &(636,939), &vec!["A2".to_string(),"A3".to_string(),"A4".to_string()], 2, 10, Direction::Reverse, vec![0;3]);
+	tess.pack_recursive(&flist, &(636,939), &vec!["A2".to_string(),"A3".to_string(),"A4".to_string()], 0, 10, Direction::Correct, vec![0;3]);
 }
