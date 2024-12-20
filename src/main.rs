@@ -195,7 +195,7 @@ impl Tessellations {
 						}
 					}
 					else {
-						println!("{:?}:{:?}", dir, result);
+						//println!("{:?}:{:?}", dir, result);
 						self.stage.push(result);
 					}
 				},
@@ -207,7 +207,7 @@ impl Tessellations {
 						self.pack_recursive(flist, &(*m_short,m_long-p_size.0+(2*margin)), input_products, index, margin, dir, result.clone());
 					}
 					else {
-						println!("{:?}:{:?}", dir, result);
+						//println!("{:?}:{:?}", dir, result);
 						self.stage.push(result);
 					}
 				},
@@ -226,32 +226,39 @@ impl Tessellations {
 					if let Some(m_size) = flist.put_size(&mlist.machine[machine_index].size) {
 						for dir in &direction {
 							self.pack_recursive(flist, &m_size, &products_size, product_index, margin, dir.clone(), vec![0; tally.data[series_index].len()]);
-
-							let mut rm_list = Vec::new();
-							for i in 0..self.stage.len() {
-								for j in (i+1)..self.stage.len() {
-									if !rm_list.contains(&i) && !rm_list.contains(&j) && self.stage[i][product_index] == self.stage[j][product_index] {
-										if self.stage[i].iter().sum::<u8>() < self.stage[j].iter().sum() { rm_list.push(i) }
-										else { rm_list.push(j) }
-									}
-								}
-							}
-							rm_list.sort_by(|a,b| b.cmp(a));
-							for rm_index in rm_list { self.stage.remove(rm_index); }
-
-							self.pattern[machine_index][series_index].extend(self.stage.clone());
-							self.stage.clear();
 						}
 					}
 				}
+
+				let mut rm_list = Vec::new();
+				for line in 0..self.stage[0].len() {
+					for i in 0..self.stage.len() {
+						for j in (i+1)..self.stage.len() {
+							let i_sum: u8 = self.stage[i].iter().sum();
+							let j_sum: u8 = self.stage[j].iter().sum();
+
+							if self.stage[i][line] == self.stage[j][line] && i_sum > j_sum { rm_list.push(j) }
+							else if self.stage[i][line] == self.stage[j][line] && i_sum <= j_sum { rm_list.push(i) }
+//							else if !rm_list.contains(&j) && i_sum-self.stage[i][line] == j_sum-self.stage[j][line] && self.stage[i][line] > self.stage[j][line] { rm_list.push(j) }
+//							else if !rm_list.contains(&i) && i_sum-self.stage[i][line] == j_sum-self.stage[j][line] && self.stage[i][line] <= self.stage[j][line] { rm_list.push(i) }
+						}
+					}
+				}
+				rm_list.sort_by(|a,b| b.cmp(a));
+				println!("rm:{:?}",rm_list);
+				println!("st:{:?}\n",self.stage);
+				self.pattern[machine_index][series_index].extend(self.stage.clone());
+				self.stage.clear();
 			}
 		}
 	}
-	fn show(&self) {
-		for i in 0..self.pattern.len() {
-			for j in 0..self.pattern[i].len() {
-				for k in 0..self.pattern[i][j].len() {
-					println!("{:?}", self.pattern[i][j][k]);
+	fn show(&self, mlist: &Machines, tally: &Tally) {
+		for machine_index in 0..mlist.machine.len() {
+			println!("{}", mlist.machine[machine_index].size);
+			for series_index in 0..tally.data.len() {
+				println!("{:?}", tally.data[series_index].iter().map(|(x,_)| x.clone()).collect::<Vec<_>>());
+				for index in 0..self.pattern[machine_index][series_index].len() {
+					println!("{:?}", self.pattern[machine_index][series_index][index]);
 				}
 			}
 		}
@@ -306,5 +313,5 @@ fn main() {
 
 	let mut tess = Tessellations::new();
 	tess.pack(&flist, &mlist, &tally, 10);
-	tess.show();
+	tess.show(&mlist, &tally);
 }
