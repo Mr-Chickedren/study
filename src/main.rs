@@ -257,6 +257,25 @@ impl Tessellations {
 		}
 	}
 }
+
+struct Impositions {
+	pattern: Vec<Vec<u8>>,
+}
+impl Impositions {
+	fn new() -> Self {
+		Self { pattern: Vec::new() }
+	}
+	fn calc(&mut self, ) {
+		
+	}
+	fn show(&self) {
+		println!("*** Impositions ***");
+		for i in 0..self.pattern.len() {
+			println!("{:?}", self.pattern[i]);
+		}
+		print!("\n");
+	}
+}
 	
 fn main() {
 	let mut flist = FormatList::new();
@@ -307,4 +326,7 @@ fn main() {
 	let mut tess = Tessellations::new();
 	tess.pack(&flist, &mlist, &tally, 10);
 	tess.show(&mlist, &tally);
+
+	let mut impo = Impositions::new();
+	impo.show();
 }
