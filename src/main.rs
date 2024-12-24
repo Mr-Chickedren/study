@@ -137,6 +137,7 @@ impl Machines {
 	}
 }
 
+#[derive(Debug)]
 struct Tally {
 	data: Vec<Vec<(String, Vec<usize>)>>,
 }
@@ -165,6 +166,8 @@ impl Tally {
 	}
 }
 
+
+#[derive(Debug)]
 struct Tessellations {
 	pattern: Vec<Vec<Vec<Vec<u8>>>>,
 	stage: Vec<Vec<u8>>,
@@ -258,20 +261,49 @@ impl Tessellations {
 	}
 }
 
+#[derive(Debug)]
 struct Impositions {
-	pattern: Vec<Vec<u8>>,
+	pattern: Vec<Vec<Vec<u8>>>,
 }
 impl Impositions {
 	fn new() -> Self {
 		Self { pattern: Vec::new() }
 	}
-	fn calc(&mut self, ) {
-		
+	fn calc(&mut self, tally: &Tally, tess: &Tessellations) {
+		for machine_index in 0..tess.pattern.len() {
+			println!("machine{}:\n-------------------",machine_index);
+			self.pattern.push(Vec::new());
+
+			for series_index in 0..tess.pattern[machine_index].len() {
+				for kinds_index in 0..tess.pattern[machine_index][series_index].len() {
+					for format_index in 0..tess.pattern[machine_index][series_index][kinds_index].len() {
+						println!("{}:{:?}",tess.pattern[machine_index][series_index][kinds_index][format_index],tally.data[series_index][format_index].1);
+						//for ids_index in 0..tally.data[series_index][format_index].1.len() {
+							//print!("{:?}",tally.data[series_index][format_index].1[ids_index])
+						//}
+					}
+					print!("\n");
+				}
+			}
+
+			//self.pattern[machine_index].push(imp);
+
+		}
 	}
-	fn show(&self) {
+	fn show(&self, mlist: &Machines, plist: &Products) {
 		println!("*** Impositions ***");
-		for i in 0..self.pattern.len() {
-			println!("{:?}", self.pattern[i]);
+		for i in 0..mlist.machine.len() {
+			println!("#{}", mlist.machine[i].size);
+			for j in 0..self.pattern[i].len() {
+				for k in 0..plist.product.len() {
+					print!("{:>3}", k);
+				}
+				print!("\n");
+				for k in 0..self.pattern[i][j].len() {
+					print!("{:>3}", self.pattern[i][j][k]);
+				}
+				print!("\n");
+			}
 		}
 		print!("\n");
 	}
@@ -310,13 +342,14 @@ fn main() {
 	plist.add(&flist, "A3", 3, 20000);
 	plist.add(&flist, "B1", 3, 20000);
 	plist.add(&flist, "B4", 3, 20000);
-	plist.add(&flist, "B3", 3, 20000);
-	plist.add(&flist, "B3", 3, 20000);
+	plist.add(&flist, "B4", 3, 20000);
+	plist.add(&flist, "A2", 3, 20000);
 	plist.show();
 
 	let mut mlist = Machines::new();
 	mlist.add(&flist, "KK1", 2, 5000);
 	mlist.add(&flist, "KK2", 4, 5000);
+	mlist.add(&flist, "SR1", 4, 5000);
 	mlist.show();
 
 	let mut tally = Tally::new();
@@ -328,5 +361,6 @@ fn main() {
 	tess.show(&mlist, &tally);
 
 	let mut impo = Impositions::new();
-	impo.show();
+	impo.calc(&tally, &tess);
+	//impo.show(&mlist,&plist);
 }
