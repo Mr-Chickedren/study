@@ -1,10 +1,13 @@
-#[derive(PartialEq)]
-enum Relationship {
-	Greater,
-	Less,
-	Equal,
-	Error,
-}
+#![allow(unused_variables)]
+#![allow(dead_code)]
+
+//#[derive(PartialEq)]
+//enum Relationship {
+//	Greater,
+//	Less,
+//	Equal,
+//	Error,
+//}
 
 #[derive(PartialEq,Debug,Clone)]
 enum Direction {
@@ -51,17 +54,17 @@ impl FormatList {
 		}
 		else { println!("Error: \"{}\" is not exists. Please excute \"add_series()\"", format) }
 	}
-	fn comp(&self, a: &String, b: &String) -> Relationship {
-		if let Some((a_index, row)) = self.dict.iter().find_map(|row| { row.iter().position(|x| x.name == *a).map(|j| (j, row))}) {
-			if let Some(b_index) = row.iter().position(|x| x.name == *b) {
-				if a_index == b_index { Relationship::Equal }
-				else if a_index < b_index { Relationship::Greater }
-				else { Relationship::Less }
-			}
-			else { Relationship::Error }
-		}
-		else { Relationship::Error }
-	}
+	//fn comp(&self, a: &String, b: &String) -> Relationship {
+	//	if let Some((a_index, row)) = self.dict.iter().find_map(|row| { row.iter().position(|x| x.name == *a).map(|j| (j, row))}) {
+	//		if let Some(b_index) = row.iter().position(|x| x.name == *b) {
+	//			if a_index == b_index { Relationship::Equal }
+	//			else if a_index < b_index { Relationship::Greater }
+	//			else { Relationship::Less }
+	//		}
+	//		else { Relationship::Error }
+	//	}
+	//	else { Relationship::Error }
+	//}
 	fn downgrade(&self, size: &String) -> Option<String> {
 		if let Some((index, row)) = self.dict.iter().find_map(|row| { row.iter().position(|x| x.name == *size).map(|j| (j, row))}) {
 			if index != row.len()-1 { Some(row[index+1].name.clone()) }
@@ -137,7 +140,6 @@ impl Machines {
 	}
 }
 
-#[derive(Debug)]
 struct Tally {
 	data: Vec<Vec<(String, Vec<usize>)>>,
 }
@@ -167,7 +169,6 @@ impl Tally {
 }
 
 
-#[derive(Debug)]
 struct Tessellations {
 	pattern: Vec<Vec<Vec<Vec<u8>>>>,
 	stage: Vec<Vec<u8>>,
@@ -177,12 +178,10 @@ impl Tessellations {
 		Self{ pattern: Vec::new(), stage: Vec::new() }
 	}
 	fn pack_recursive(&mut self, flist: &FormatList, (m_short,m_long): &(u32,u32), input_products: &Vec<String>, index: usize, margin: u32, dir: Direction, mut result: Vec<u8>) {
-		let mut fit_short: u32 = 0;
-
 		if let Some(p_size) = flist.put_size(&input_products[index]) {
 			match dir {
 				Direction::Correct => {
-					fit_short = *m_short / (p_size.0+(2*margin));
+					let fit_short = *m_short / (p_size.0+(2*margin));
 					if fit_short != 0 && p_size.1+(2*margin) < *m_long {
 						result[index] += fit_short as u8;
 						self.pack_recursive(flist, &(*m_short,m_long-p_size.1+(2*margin)), input_products, index, margin, dir, result.clone());
@@ -200,7 +199,7 @@ impl Tessellations {
 					}
 				},
 				Direction::Reverse => {
-					fit_short = *m_short / (p_size.1+(2*margin));
+					let fit_short = *m_short / (p_size.1+(2*margin));
 					if fit_short != 0 && p_size.0+(2*margin) < *m_long {
 						result[index] += fit_short as u8;
 						self.pack_recursive(flist, &(*m_short,m_long-p_size.0+(2*margin)), input_products, index, margin, dir, result.clone());
@@ -261,33 +260,55 @@ impl Tessellations {
 	}
 }
 
-#[derive(Debug)]
 struct Impositions {
-	pattern: Vec<Vec<Vec<u8>>>,
+	pattern: Vec<Vec<Vec<usize>>>,
 }
 impl Impositions {
 	fn new() -> Self {
 		Self { pattern: Vec::new() }
 	}
-	fn calc(&mut self, tally: &Tally, tess: &Tessellations) {
+	fn calc(&mut self, tally: &Tally, tess: &Tessellations, plist: &Products) {
+		let mut imp_total: Vec<Vec<Vec<usize>>> = vec![Vec::new();tess.pattern.len()];
+
 		for machine_index in 0..tess.pattern.len() {
-			println!("machine{}:\n-------------------",machine_index);
-			self.pattern.push(Vec::new());
+			//println!("machine{}:\n-------------------",machine_index);
 
 			for series_index in 0..tess.pattern[machine_index].len() {
 				for kinds_index in 0..tess.pattern[machine_index][series_index].len() {
+
+					let mut combos_select_total: Vec<Vec<Vec<usize>>> = Vec::new();
 					for format_index in 0..tess.pattern[machine_index][series_index][kinds_index].len() {
-						println!("{}:{:?}",tess.pattern[machine_index][series_index][kinds_index][format_index],tally.data[series_index][format_index].1);
-						//for ids_index in 0..tally.data[series_index][format_index].1.len() {
-							//print!("{:?}",tally.data[series_index][format_index].1[ids_index])
-						//}
+						//println!("{}:{:?}",tess.pattern[machine_index][series_index][kinds_index][format_index],tally.data[series_index][format_index].1);
+
+						let mut combos_select = Vec::new();
+						if tess.pattern[machine_index][series_index][kinds_index][format_index] != 0 {
+							generate_select_combinations(&tally.data[series_index][format_index].1, tess.pattern[machine_index][series_index][kinds_index][format_index] as usize, Vec::new(), &mut Vec::new(), &mut combos_select);
+							combos_select_total.push(combos_select);
+						}
 					}
-					print!("\n");
+					//println!("{:?}",combos_select_total);
+					let mut combos_han: Vec<Vec<Vec<usize>>> = Vec::new();
+					generate_combination(&combos_select_total, &mut combos_han);
+					//println!("{:?}",combos_han);
+
+					for i_comb in 0..combos_han.len() {
+						let mut tmp = vec![0;plist.product.len()];
+						let imp_han: Vec<usize> = combos_han[i_comb].clone().into_iter().flat_map(|x| x).collect();
+						for i_imp in &imp_han {
+							tmp[*i_imp] += 1;
+						}
+						imp_total[machine_index].push(tmp);
+					}
+					//println!("");
+
 				}
 			}
+		}
 
-			//self.pattern[machine_index].push(imp);
+		generate_combination(&imp_total, &mut self.pattern);
 
+		for i in 0..self.pattern.len() {
+			println!("{:?}", self.pattern[i]);
 		}
 	}
 	fn show(&self, mlist: &Machines, plist: &Products) {
@@ -308,7 +329,56 @@ impl Impositions {
 		print!("\n");
 	}
 }
-	
+
+fn generate_select_combinations(chars: &Vec<usize>, s: usize, current: Vec<usize>, count: &mut Vec<Vec<usize>>, results: &mut Vec<Vec<usize>>) {
+	if current.len() == s {
+		for cnt in count.clone() {
+			let mut tmp = 0;
+			for i in 0..chars.len() {
+				if current.iter().filter(|&c| *c == chars[i]).count() == cnt[i] { tmp += 1 }
+			}
+			if tmp == chars.len() { return }
+		}
+
+		let mut cnt = vec![0;chars.len()];
+		for i in 0..chars.len() {
+			cnt[i] = current.iter().filter(|&c| *c == chars[i]).count();
+		}
+		count.push(cnt);
+		results.push(current);
+		return;
+	}
+
+   for c in chars.clone() {
+      let mut new_current = current.clone();
+      new_current.push(c);
+      generate_select_combinations(chars, s, new_current, count, results);
+   }
+}
+
+fn generate_combination(target: &Vec<Vec<Vec<usize>>>, result: &mut Vec<Vec<Vec<usize>>>) {
+	let mut count = vec![0;target.len()];
+	let mut r = 1;
+
+	for i in 0..target.len() { r *= target[i].len() }
+
+	for _ in 0..r {
+		let mut tmp:Vec<Vec<usize>> = Vec::new();
+		for i in 0..target.len() {
+			tmp.push(target[i][count[i]].clone());
+		}
+		result.push(tmp);
+
+		count[0] += 1;
+		for i in 0..count.len()-1 {
+			if count[i] == target[i].len() {
+				count[i] = 0;
+				count[i+1] += 1;
+			}
+		}
+	}
+}
+
 fn main() {
 	let mut flist = FormatList::new();
 	flist.add_series("A");
@@ -332,35 +402,35 @@ fn main() {
 	flist.add_format("SR2", (545,788));
 	flist.add_format("SR4", (394,545));
 	flist.add_format("SR8", (272,394));
-	flist.show();
+//	flist.show();
 
 	let mut plist = Products::new();
 	plist.add(&flist, "A3", 4, 25000);
 	plist.add(&flist, "A4", 4, 25000);
 	plist.add(&flist, "A2", 2, 10000);
 	plist.add(&flist, "A3", 4, 20000);
-	plist.add(&flist, "A3", 3, 20000);
-	plist.add(&flist, "B1", 3, 20000);
-	plist.add(&flist, "B4", 3, 20000);
-	plist.add(&flist, "B4", 3, 20000);
-	plist.add(&flist, "A2", 3, 20000);
-	plist.show();
+//	plist.add(&flist, "A3", 3, 20000);
+//	plist.add(&flist, "B1", 3, 20000);
+//	plist.add(&flist, "B4", 3, 20000);
+//	plist.add(&flist, "B4", 3, 20000);
+//	plist.add(&flist, "A2", 3, 20000);
+//	plist.show();
 
 	let mut mlist = Machines::new();
 	mlist.add(&flist, "KK1", 2, 5000);
 	mlist.add(&flist, "KK2", 4, 5000);
-	mlist.add(&flist, "SR1", 4, 5000);
-	mlist.show();
+	//mlist.add(&flist, "SR1", 4, 5000);
+//	mlist.show();
 
 	let mut tally = Tally::new();
 	tally.count(&flist, &plist);
-	tally.show();
+//	tally.show();
 
 	let mut tess = Tessellations::new();
 	tess.pack(&flist, &mlist, &tally, 10);
-	tess.show(&mlist, &tally);
+//	tess.show(&mlist, &tally);
 
 	let mut impo = Impositions::new();
-	impo.calc(&tally, &tess);
+	impo.calc(&tally, &tess, &plist);
 	//impo.show(&mlist,&plist);
 }
