@@ -1,21 +1,32 @@
-//#![allow(unused_variables)]
-//#![allow(dead_code)]
-
-//#[derive(PartialEq)]
-//enum Relationship {
-//	Greater,
-//	Less,
-//	Equal,
-//	Error,
-//}
-
-#[derive(PartialEq,Debug,Clone)]
+#[derive(PartialEq,Clone)]
 enum Direction {
 	Correct,
 	Reverse,
 }
 
-#[derive(Debug)]
+enum Attribute {
+	I(Vec<usize>),
+	P(Vec<usize>),
+}
+impl Attribute {
+	fn extract(&self) -> Vec<usize> {
+		match self {
+			Attribute::I(x) => x.clone(),
+			Attribute::P(x) => x.clone(),
+		}
+	}
+	fn extract_conditional(&self) -> Vec<usize> {
+		match self {
+			Attribute::I(x) => {
+				let mut tmp = x.clone();
+				for t in &mut tmp { *t = 0 }
+				tmp
+			},
+			Attribute::P(x) => x.clone(),
+		}
+	}
+}
+
 struct Format {
 	name: String,
 	size: (u32,u32),
@@ -54,17 +65,6 @@ impl FormatList {
 		}
 		else { println!("Error: \"{}\" is not exists. Please excute \"add_series()\"", format) }
 	}
-	//fn comp(&self, a: &String, b: &String) -> Relationship {
-	//	if let Some((a_index, row)) = self.dict.iter().find_map(|row| { row.iter().position(|x| x.name == *a).map(|j| (j, row))}) {
-	//		if let Some(b_index) = row.iter().position(|x| x.name == *b) {
-	//			if a_index == b_index { Relationship::Equal }
-	//			else if a_index < b_index { Relationship::Greater }
-	//			else { Relationship::Less }
-	//		}
-	//		else { Relationship::Error }
-	//	}
-	//	else { Relationship::Error }
-	//}
 	fn downgrade(&self, size: &String) -> Option<String> {
 		if let Some((index, row)) = self.dict.iter().find_map(|row| { row.iter().position(|x| x.name == *size).map(|j| (j, row))}) {
 			if index != row.len()-1 { Some(row[index+1].name.clone()) }
@@ -288,7 +288,7 @@ impl Impositions {
 					}
 					//println!("{:?}",combos_select_total);
 					let mut combos_han: Vec<Vec<Vec<usize>>> = Vec::new();
-					generate_combination(&combos_select_total, &mut combos_han);
+					generate_cmbinations(&combos_select_total, &mut combos_han);
 					//println!("{:?}",combos_han);
 
 					for i_comb in 0..combos_han.len() {
@@ -304,29 +304,14 @@ impl Impositions {
 				}
 			}
 		}
-
-		generate_combination(&imp_total, &mut self.pattern);
-
-		for i in 0..self.pattern.len() {
-			println!("{:?}", self.pattern[i]);
-		}
+		generate_cmbinations(&imp_total, &mut self.pattern);
 	}
-	fn show(&self, mlist: &Machines, plist: &Products) {
-		println!("*** Impositions ***");
-		for i in 0..mlist.machine.len() {
-			println!("#{}", mlist.machine[i].size);
-			for j in 0..self.pattern[i].len() {
-				for k in 0..plist.product.len() {
-					print!("{:>3}", k);
-				}
-				print!("\n");
-				for k in 0..self.pattern[i][j].len() {
-					print!("{:>3}", self.pattern[i][j][k]);
-				}
-				print!("\n");
+	fn show(&self) {
+		//println!("{*** Imposition Patterns ***}");
+			for i in 0..self.pattern.len() {
+				println!("{:?}", self.pattern[i]);
 			}
-		}
-		print!("\n");
+		//print!("\n");
 	}
 }
 
@@ -356,7 +341,7 @@ fn generate_select_combinations(chars: &Vec<usize>, s: usize, current: Vec<usize
    }
 }
 
-fn generate_combination(target: &Vec<Vec<Vec<usize>>>, result: &mut Vec<Vec<Vec<usize>>>) {
+fn generate_cmbinations(target: &Vec<Vec<Vec<usize>>>, result: &mut Vec<Vec<Vec<usize>>>) {
 	let mut count = vec![0;target.len()];
 	let mut r = 1;
 
@@ -407,8 +392,8 @@ fn main() {
 	let mut plist = Products::new();
 	plist.add(&flist, "A3", 4, 25000);
 	plist.add(&flist, "A4", 4, 25000);
-	plist.add(&flist, "A2", 2, 10000);
-	plist.add(&flist, "A3", 4, 20000);
+//	plist.add(&flist, "A2", 2, 10000);
+//	plist.add(&flist, "A3", 4, 20000);
 //	plist.add(&flist, "A3", 3, 20000);
 //	plist.add(&flist, "B1", 3, 20000);
 //	plist.add(&flist, "B4", 3, 20000);
@@ -432,5 +417,5 @@ fn main() {
 
 	let mut impo = Impositions::new();
 	impo.calc(&tally, &tess, &plist);
-	//impo.show(&mlist,&plist);
+	impo.show();
 }
