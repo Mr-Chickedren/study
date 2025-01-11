@@ -4,6 +4,7 @@ enum Direction {
 	Reverse,
 }
 
+#[derive(Debug)]
 enum Attribute {
 	I(Vec<usize>),
 	P(Vec<usize>),
@@ -268,7 +269,7 @@ impl Impositions {
 		Self { pattern: Vec::new() }
 	}
 	fn calc(&mut self, tally: &Tally, tess: &Tessellations, plist: &Products) {
-		let mut imp_total: Vec<Vec<Vec<usize>>> = vec![Vec::new();tess.pattern.len()];
+		self.pattern = vec![Vec::new();tess.pattern.len()];
 
 		for machine_index in 0..tess.pattern.len() {
 			//println!("machine{}:\n-------------------",machine_index);
@@ -297,21 +298,70 @@ impl Impositions {
 						for i_imp in &imp_han {
 							tmp[*i_imp] += 1;
 						}
-						imp_total[machine_index].push(tmp);
+						self.pattern[machine_index].push(tmp);
 					}
 					//println!("");
 
 				}
 			}
 		}
-		generate_cmbinations(&imp_total, &mut self.pattern);
+	}
+	fn generate_pattern(&self) -> Vec<Vec<Vec<usize>>> {
+		if self.pattern.is_empty() { return Vec::new() }
+
+		let mut res = Vec::new();
+		generate_cmbinations(&self.pattern, &mut res);
+		res
+	}
+	fn generate_attributed_pattern(&self) -> Vec<Vec<Attribute>> {
+		if self.pattern.is_empty() { return Vec::new() }
+
+		// all pattern (select attribute)
+		let mut s: Vec<Vec<bool>> = Vec::new();
+		for binary in 1..2_u32.pow(self.pattern.len() as u32) {
+			s.push( (0..self.pattern.len()).rev().map(|i| (binary & (1 << i))!=0).collect() );
+		}
+
+		// all pattern (imposition)
+		let mut res = Vec::new();
+		for i in 0..s.len() {
+			let mut tmp = Vec::new();
+			for j in 0..s[i].len() {
+				match s[i][j] {
+					false => {
+						tmp.push(vec![vec![0;self.pattern[0][0].len()]]);
+					},
+					true => {
+						tmp.push(self.pattern[j].clone());
+					},
+				}
+			}
+			generate_cmbinations(&tmp, &mut res);
+		}
+
+		// add attribute
+		let mut res_attr = Vec::new();
+		for i in 0..res.len() {
+			let mut tmp = Vec::new();
+			for r in &res[i] {
+				if r.iter().sum::<usize>() == 0 {
+					tmp.push(Attribute::P(r.clone()));
+				}
+				else {
+					tmp.push(Attribute::I(r.clone()));
+				}
+			}
+			res_attr.push(tmp);
+		}
+
+		res_attr
 	}
 	fn show(&self) {
-		//println!("{*** Imposition Patterns ***}");
-			for i in 0..self.pattern.len() {
-				println!("{:?}", self.pattern[i]);
-			}
-		//print!("\n");
+		println!("*** Imposition Patterns ***");
+		for i in 0..self.pattern.len() {
+			println!("M{:<3}: {:?}", i, self.pattern[i]);
+		}
+		print!("\n");
 	}
 }
 
@@ -364,6 +414,19 @@ fn generate_cmbinations(target: &Vec<Vec<Vec<usize>>>, result: &mut Vec<Vec<Vec<
 	}
 }
 
+fn generate_problem(imposition_attr: &Vec<Vec<Attribute>>) {
+	for t in imposition_attr { println!("{:?}",t) }
+	let mut prob: Vec<Vec<f32>> = Vec::new();
+
+	// create select matrix
+	let mut s: Vec<Vec<bool>> = Vec::new();
+	for binary in 1..2_u32.pow(imposition_attr.len() as u32) {
+		s.push( (0..imposition_attr.len()).rev().map(|i| (binary & (1 << i))!=0).collect() );
+	}
+
+	//for t in &s { println!("{:?}",t) }
+}
+
 fn main() {
 	let mut flist = FormatList::new();
 	flist.add_series("A");
@@ -404,7 +467,7 @@ fn main() {
 	let mut mlist = Machines::new();
 	mlist.add(&flist, "KK1", 2, 5000);
 	mlist.add(&flist, "KK2", 4, 5000);
-	//mlist.add(&flist, "SR1", 4, 5000);
+//	mlist.add(&flist, "SR1", 4, 5000);
 //	mlist.show();
 
 	let mut tally = Tally::new();
@@ -417,5 +480,6 @@ fn main() {
 
 	let mut impo = Impositions::new();
 	impo.calc(&tally, &tess, &plist);
-	impo.show();
+//	impo.show();
+	generate_problem(&impo.generate_attributed_pattern());
 }
