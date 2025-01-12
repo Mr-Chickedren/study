@@ -4,7 +4,7 @@ enum Direction {
 	Reverse,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Attribute {
 	I(Vec<usize>),
 	P(Vec<usize>),
@@ -24,6 +24,12 @@ impl Attribute {
 				tmp
 			},
 			Attribute::P(x) => x.clone(),
+		}
+	}
+	fn len(&self) -> usize {
+		match self {
+			Attribute::I(x) => x.len(),
+			Attribute::P(x) => x.len(),
 		}
 	}
 }
@@ -414,17 +420,90 @@ fn generate_cmbinations(target: &Vec<Vec<Vec<usize>>>, result: &mut Vec<Vec<Vec<
 	}
 }
 
-fn generate_problem(imposition_attr: &Vec<Vec<Attribute>>) {
-	for t in imposition_attr { println!("{:?}",t) }
-	let mut prob: Vec<Vec<f32>> = Vec::new();
+fn generate_problem(plist: &Products, mlist: &Machines, imposition_attr: &Vec<Vec<Attribute>>, select_num: usize) {
+	let mut n = 0;
+	let mut prob_all: Vec<Vec<Vec<f32>>> = Vec::new();
+	
+	if select_num <= 0 { n = 1 }
+	else if select_num > imposition_attr.len() { n = imposition_attr.len() }
+	else { n = select_num }
 
 	// create select matrix
-	let mut s: Vec<Vec<bool>> = Vec::new();
-	for binary in 1..2_u32.pow(imposition_attr.len() as u32) {
-		s.push( (0..imposition_attr.len()).rev().map(|i| (binary & (1 << i))!=0).collect() );
+	let mut s: Vec<Vec<usize>> = Vec::new();
+	let mut tmp: Vec<usize> = vec![0;select_num];
+	for _i in 0..imposition_attr.len().pow(select_num.try_into().unwrap()) {
+		let mut ps = true;
+		for j in 0..tmp.len()-1 {
+			for k in j+1..tmp.len() {
+				if tmp[j] == tmp[k] { ps = false; break; }
+			}
+			if !ps { break }
+		}
+		if ps { s.push(tmp.clone()) }
+		tmp[select_num - 1] += 1;
+		for j in (1..tmp.len()).rev() {
+			if tmp[j] >= imposition_attr.len() {
+				tmp[j] = 0;
+				tmp[j-1] += 1;
+			}
+		}
 	}
 
-	//for t in &s { println!("{:?}",t) }
+	// generate problem for all select
+	for select in 0..s.len() {
+		// apply select matrix to impositions
+		let mut imposition_app = Vec::new();
+		for i in &s[select] {
+			imposition_app.push(imposition_attr[*i].clone());
+		}
+		let mut vs = vec![vec![0;plist.product.len()];mlist.machine.len()];
+		for i in 0..imposition_app.len() {
+			for j in 0..imposition_app[i].len() {
+				match &imposition_app[i][j] {
+					Attribute::I(v) => {
+						vs[j] = v.clone();
+					},
+					Attribute::P(v) => {
+						if i != 0 {
+							imposition_app[i][j] = Attribute::P(vs[j].clone());
+						}
+					},
+				}
+			}
+		}
+
+		// create problem: object fnction (each select)
+		let mut prob: Vec<Vec<f32>> = Vec::new();
+		prob.push( vec![0.0; 1 + select_num + plist.product.len()] );
+		prob[0][0] = select_num as f32;
+		for i in 0..select_num { prob[0][i + 1] = 1.0 }
+
+		// create problem: conditions (each select)
+		//[u = 0 + 3*x1 + 1*x2 + 2*x3 + 0*x4]
+		//[6 = 1*x1 + 2*x2 + 3*x3 + -1*x4]
+		//[10 = 3*x1 + 2*x2 + 1*x3 + 1*x4]
+		for i in 0..plist.product.len() {
+			prob.push( vec![0.0; prob[0].len()] );
+			prob[i + 1][0] = plist.product[i].num as f32;
+		}
+		for i in 0..imposition_app.len() {
+			for j in 0..imposition_app[i].len() {
+				let v_c = imposition_app[i][j].extract_conditional();
+				let v_nc = imposition_app[i][j].extract();
+				for k in 0..v_c.len() {
+					prob[k + 1][0] -= mlist.machine[j].speed as f32 * v_c[k] as f32;
+					prob[k + 1][i + 1] += mlist.machine[j].speed as f32 * v_nc[k] as f32;
+				}
+			}
+		}
+		// add slug-val
+		for i in 0..plist.product.len() {
+			prob[i + 1][1 + select_num + i] = -1.0;
+		}
+		for t in &prob { println!("{:?}",t) }
+
+		prob_all.push(prob);
+	}
 }
 
 fn main() {
@@ -481,5 +560,5 @@ fn main() {
 	let mut impo = Impositions::new();
 	impo.calc(&tally, &tess, &plist);
 //	impo.show();
-	generate_problem(&impo.generate_attributed_pattern());
+	generate_problem(&plist, &mlist, &impo.generate_attributed_pattern(), 3);
 }
