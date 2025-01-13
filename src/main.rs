@@ -699,13 +699,25 @@ fn show_dict(dict: &Vec<Vec<f32>>, bv: &Vec<usize>) {
 }
 
 fn calclate_problem(probs: &Vec<Vec<Vec<f32>>>) {
-	for pb in probs {
-		let mut prob = pb.clone();
+	let mut best: Option< (Vec<Vec<f32>>, Vec<usize>, usize) > = None;
 
+	for i in 0..probs.len() {
+		let mut prob = probs[i].clone();
 		let mut bv = Vec::new();
+
 		match two_phase_simplex_method(&mut prob, &mut bv) {
 			Ok(_) => {
 				show_dict(&prob, &bv);
+				match best {
+					None => {
+						best = Some( (prob.clone(), bv.clone(), i) );
+					},
+					Some( (ref b, _, _) ) => {
+						if b[0][0] > prob[0][0] {
+							best = Some( (prob.clone(), bv.clone(), i) );
+						}
+					},
+				}
 			},
 			Err(err) => {
 				match err {
@@ -715,6 +727,13 @@ fn calclate_problem(probs: &Vec<Vec<Vec<f32>>>) {
 				}
 			}, 
 		}
+	}
+
+	println!("\n*** result ***");
+	if let Some((p,b,i)) = best {
+		for t in &probs[i] { println!("{:?}",t) }
+		show_dict(&p,&b);
+		for t in &p { println!("{:?}",t) }
 	}
 }
 
@@ -745,10 +764,10 @@ fn main() {
 //	flist.show();
 
 	let mut plist = Products::new();
-	plist.add(&flist, "A3", 4, 25000);
-	plist.add(&flist, "A4", 4, 25000);
-//	plist.add(&flist, "A2", 2, 10000);
-//	plist.add(&flist, "A3", 4, 20000);
+	plist.add(&flist, "A3", 4, 250000);
+	plist.add(&flist, "A4", 4, 500000);
+//	plist.add(&flist, "B3", 2, 100000);
+//	plist.add(&flist, "B3", 4, 20000);
 //	plist.add(&flist, "A3", 3, 20000);
 //	plist.add(&flist, "B1", 3, 20000);
 //	plist.add(&flist, "B4", 3, 20000);
