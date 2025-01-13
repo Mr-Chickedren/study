@@ -1,3 +1,14 @@
+const ROUNDING_DIGIT: f32 = 4.0;
+
+enum Error {
+	//Optimal solution does not exist	
+	NotExist(String),
+	//The first step failed
+	FailedPhase(String),
+	//The result is not what is needed
+	NotNeed(String),
+}
+
 #[derive(PartialEq,Clone)]
 enum Direction {
 	Correct,
@@ -420,7 +431,7 @@ fn generate_cmbinations(target: &Vec<Vec<Vec<usize>>>, result: &mut Vec<Vec<Vec<
 	}
 }
 
-fn generate_problem(plist: &Products, mlist: &Machines, imposition_attr: &Vec<Vec<Attribute>>, select_num: usize) {
+fn generate_problem(plist: &Products, mlist: &Machines, imposition_attr: &Vec<Vec<Attribute>>, select_num: usize) -> Vec<Vec<Vec<f32>>> {
 	let mut n = 0;
 	let mut prob_all: Vec<Vec<Vec<f32>>> = Vec::new();
 	
@@ -500,11 +511,213 @@ fn generate_problem(plist: &Products, mlist: &Machines, imposition_attr: &Vec<Ve
 		for i in 0..plist.product.len() {
 			prob[i + 1][1 + select_num + i] = -1.0;
 		}
-		for t in &prob { println!("{:?}",t) }
 
 		prob_all.push(prob);
 	}
+
+	prob_all
 }
+
+fn convert_artificial_problem_dict(prob: &mut Vec<Vec<f32>>) -> Vec<usize> {
+	let mut bv = Vec::new();
+
+	for i in 1..prob.len() {
+		if prob[i][0] < 0.0 {
+			for j in 0..prob[i].len() {
+				prob[i][j] *= -1.0;
+			}
+		}
+	}
+
+	for i in 1..prob.len() {
+		for j in 1..prob[i].len() {
+			prob[i][j] *= -1.0;
+		}
+	}
+
+	for i in prob[0].len()..(prob[0].len()+prob.len()-1) {
+		bv.push(i);
+		for j in 0..prob.len() {
+			prob[j].push(0.0);
+		}
+	}
+	for t in &mut prob[0] { *t = 0.0 }
+
+	for i in 0..prob[0].len() {
+		for j in 1..prob.len() {
+			prob[0][i] += prob[j][i];
+		}
+	}
+
+	bv
+}
+
+fn simplex_method(dict: &mut Vec<Vec<f32>>, bv: &mut Vec<usize>) -> Result<(), Error>{
+	loop {
+		let mut cnt = 0;
+
+		for i in 1..dict[0].len() {
+			if dict[0][i] < 0.0 {
+
+				let mut ccnt = 0;
+				let mut min: (f32,usize) = (0.0,0);
+				for j in (1..dict.len()).rev() {
+					if dict[j][i] < 0.0 {
+
+						let tmp = dict[j][0] / dict[j][i].abs();
+						if ccnt == 0 {
+							min = (tmp,j);
+						}
+						else {
+							if tmp < min.0 {
+								min = (tmp,j);
+							}
+						}
+						
+						ccnt += 1;
+					}
+				}
+				if ccnt == 0 || min.1 == 0 {
+					return Err(Error::NotExist(format!("Error: Optimal solution does not exist.")));
+				}
+
+				//change process
+				let tmp = -1.0 * dict[min.1][i];
+				dict[min.1][i] = 0.0;
+				dict[min.1][bv[min.1 - 1]] = -1.0;
+				bv[min.1 - 1] = i;
+				for eq in &mut dict[min.1] { *eq /= tmp }
+
+				for k in 0..dict.len() {
+					if k != min.1 {
+						//substitution process
+						let tmp = dict[k][i];
+						dict[k][i] = 0.0;
+						for l in 0..dict[k].len() { dict[k][l] += tmp * dict[min.1][l] }
+					}
+				}
+
+				//sort
+				let br = bv.remove(min.1 - 1);
+				let dr = dict.remove(min.1);
+				let mut ins = bv.len();
+				for k in 0..bv.len() {
+					if bv[k] > br { ins = k }
+				}
+				bv.insert(ins, br);
+				dict.insert(ins + 1, dr);
+
+				cnt += 1;
+				break;
+			}
+		}
+
+		if cnt == 0 { return Ok(()) }
+	}
+}
+
+fn two_phase_simplex_method(dict: &mut Vec<Vec<f32>>, bv: &mut Vec<usize>) -> Result<(),Error> {
+	let org_obj_fn = dict[0].clone();
+	*bv = convert_artificial_problem_dict(dict);
+	let org_bv = bv.clone();
+
+	match simplex_method(dict, bv) {
+		Ok(_) => {},
+		Err(err) => { return Err(err) },
+	}
+
+	//zero judge and select remove not-basic-val
+	let mut rm_nbv = Vec::new();
+	for i in 0..dict[0].len() {
+		if dict[0][i] > 0.1_f32.powf(ROUNDING_DIGIT) { rm_nbv.push(i) }
+	}
+	if org_bv != rm_nbv {
+		return Err(Error::FailedPhase(format!("Error: The first step failed.")));
+	}
+
+	for i in (0..rm_nbv.len()).rev() {
+		for k in 0..dict.len() { dict[k].remove(rm_nbv[i]); }
+	}
+	dict[0] = org_obj_fn;
+
+	//substitution process
+	for i in 0..bv.len() {
+		let tmp = dict[0][bv[i]];
+		dict[0][bv[i]] = 0.0;
+		for j in 0..dict[0].len() {
+			dict[0][j] += tmp * dict[i + 1][j];
+		}
+	}
+
+	match simplex_method(dict, bv) {
+		Ok(_) => {},
+		Err(err) => { return Err(err) },
+	}
+
+	// slug val is not appropriate
+	for i in bv {
+		if *i > dict[0].len() - dict.len() {
+			return Err(Error::NotNeed(format!("Error: The result is not what is needed.")));
+		}
+	}
+
+	Ok(())
+}
+
+fn show_dict(dict: &Vec<Vec<f32>>, bv: &Vec<usize>) {
+	print!("min. u    = ");
+	for i in 0..dict[0].len() {
+		if i == 0 {
+			print!("{:7.1} + ",dict[0][i]);
+		}
+		else if i == dict[0].len()-1 {
+			print!("{:6.1}*x{:<3}",dict[0][i], i);
+		}
+		else {
+			print!("{:6.1}*x{:<3} + ",dict[0][i], i);
+		}
+	}
+	print!("\nsbj. ");
+	for i in 1..dict.len() {
+		if i != 1 { print!("     ") }
+		print!("x{:<3} = ",bv[i-1]);
+
+		for j in 0..dict[i].len() {
+			if j == 0 {
+				print!("{:7.1} + ",dict[i][j]);
+			}
+			else if j == dict[i].len()-1 {
+				print!("{:6.1}*x{:<3}",dict[i][j], j);
+			}
+			else {
+				print!("{:6.1}*x{:<3} + ",dict[i][j], j);
+			}
+		}
+
+		print!("\n");
+	}
+}
+
+fn calclate_problem(probs: &Vec<Vec<Vec<f32>>>) {
+	for pb in probs {
+		let mut prob = pb.clone();
+
+		let mut bv = Vec::new();
+		match two_phase_simplex_method(&mut prob, &mut bv) {
+			Ok(_) => {
+				show_dict(&prob, &bv);
+			},
+			Err(err) => {
+				match err {
+					Error::NotExist(s) => { eprintln!("{s}") },
+					Error::FailedPhase(s) => { eprintln!("{s}") },
+					Error::NotNeed(s) => { eprintln!("{s}") },
+				}
+			}, 
+		}
+	}
+}
+
 
 fn main() {
 	let mut flist = FormatList::new();
@@ -560,5 +773,7 @@ fn main() {
 	let mut impo = Impositions::new();
 	impo.calc(&tally, &tess, &plist);
 //	impo.show();
-	generate_problem(&plist, &mlist, &impo.generate_attributed_pattern(), 3);
+
+	let probs = generate_problem(&plist, &mlist, &impo.generate_attributed_pattern(), 3);
+	calclate_problem(&probs);
 }
