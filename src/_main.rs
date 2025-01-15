@@ -1,5 +1,4 @@
 const ROUNDING_DIGIT: f32 = 4.0;
-const DEBUG_IMPOSITION: bool = false;
 
 enum Error {
 	//Optimal solution does not exist	
@@ -18,17 +17,17 @@ enum Direction {
 
 #[derive(Debug, Clone)]
 enum Attribute {
-	I(Vec<u8>),
-	P(Vec<u8>),
+	I(Vec<usize>),
+	P(Vec<usize>),
 }
 impl Attribute {
-	fn extract(&self) -> Vec<u8> {
+	fn extract(&self) -> Vec<usize> {
 		match self {
 			Attribute::I(x) => x.clone(),
 			Attribute::P(x) => x.clone(),
 		}
 	}
-	fn extract_conditional(&self) -> Vec<u8> {
+	fn extract_conditional(&self) -> Vec<usize> {
 		match self {
 			Attribute::I(x) => {
 				let mut tmp = x.clone();
@@ -280,72 +279,56 @@ impl Tessellations {
 }
 
 struct Impositions {
-	// machine * pattern_index * product_number
-	pattern: Vec<Vec<Vec<u8>>>,
+	pattern: Vec<Vec<Vec<usize>>>,
 }
 impl Impositions {
 	fn new() -> Self {
 		Self { pattern: Vec::new() }
 	}
-	fn calc(&mut self, tally: &Tally, tess: &Tessellations) {
-
-		// number of products
-		let mut n_products = 0;
-		for i in 0..tally.data.len() {
-			for j in 0..tally.data[i].len() {
-				n_products += tally.data[i][j].1.len();
-			}
-		}
+	fn calc(&mut self, tally: &Tally, tess: &Tessellations, plist: &Products) {
+		self.pattern = vec![Vec::new();tess.pattern.len()];
 
 		for machine_index in 0..tess.pattern.len() {
+			//println!("machine{}:\n-------------------",machine_index);
 
-			let mut stage = Vec::new();
 			for series_index in 0..tess.pattern[machine_index].len() {
-				for i in 0..tess.pattern[machine_index][series_index].len() {
+				for kinds_index in 0..tess.pattern[machine_index][series_index].len() {
 
-					// calc imposition by DP and retain sequence (product number)
-					let mut tmp = Vec::new();
-					let mut sequence = Vec::new();
-					for format_index in 0..tess.pattern[machine_index][series_index][i].len() {
-						let dp_result = dp_enumerate(
-							tally.data[series_index][format_index].1.len(),
-							tess.pattern[machine_index][series_index][i][format_index] as usize
-						);
-						tmp.push(dp_result);
-						sequence.extend(tally.data[series_index][format_index].1.clone());
-					}
+					let mut combos_select_total: Vec<Vec<Vec<usize>>> = Vec::new();
+					for format_index in 0..tess.pattern[machine_index][series_index][kinds_index].len() {
+						//println!("{}:{:?}",tess.pattern[machine_index][series_index][kinds_index][format_index],tally.data[series_index][format_index].1);
 
-					// do flat [[4],[0,2]] -> [4,0,2]
-					let comb_result: Vec<Vec<u8>> = generate_combinations(&tmp).into_iter().map(
-						|matrix| matrix.into_iter().flatten().collect::<Vec<u8>>()
-					).collect();
-
-					if DEBUG_IMPOSITION {
-						println!("--");
-						for t in &comb_result {println!("{:?}",t)}
-						println!("seq:{:?}",sequence);
-					}
-
-					// sort (product number) and push
-					for j in 0..comb_result.len() {
-						let mut tmp = vec![0;n_products];
-						for k in 0..sequence.len() {
-							tmp[sequence[k] as usize] = comb_result[j][k];
+						let mut combos_select = Vec::new();
+						if tess.pattern[machine_index][series_index][kinds_index][format_index] != 0 {
+							generate_select_combinations(&tally.data[series_index][format_index].1, tess.pattern[machine_index][series_index][kinds_index][format_index] as usize, Vec::new(), &mut Vec::new(), &mut combos_select);
+							combos_select_total.push(combos_select);
 						}
-
-						if DEBUG_IMPOSITION { println!("{:?}",tmp) }
-
-						stage.push(tmp);
 					}
+					//println!("{:?}",combos_select_total);
+					let mut combos_han: Vec<Vec<Vec<usize>>> = Vec::new();
+					generate_cmbinations(&combos_select_total, &mut combos_han);
+					//println!("{:?}",combos_han);
+
+					for i_comb in 0..combos_han.len() {
+						let mut tmp = vec![0;plist.product.len()];
+						let imp_han: Vec<usize> = combos_han[i_comb].clone().into_iter().flat_map(|x| x).collect();
+						for i_imp in &imp_han {
+							tmp[*i_imp] += 1;
+						}
+						self.pattern[machine_index].push(tmp);
+					}
+					//println!("");
+
 				}
 			}
-			self.pattern.push(stage);
 		}
 	}
-	fn generate_pattern(&self) -> Vec<Vec<Vec<u8>>> {
+	fn generate_pattern(&self) -> Vec<Vec<Vec<usize>>> {
 		if self.pattern.is_empty() { return Vec::new() }
 
-		generate_combinations(&self.pattern)
+		let mut res = Vec::new();
+		generate_cmbinations(&self.pattern, &mut res);
+		res
 	}
 	fn generate_attributed_pattern(&self) -> Vec<Vec<Attribute>> {
 		if self.pattern.is_empty() { return Vec::new() }
@@ -355,7 +338,6 @@ impl Impositions {
 		for binary in 1..2_u32.pow(self.pattern.len() as u32) {
 			s.push( (0..self.pattern.len()).rev().map(|i| (binary & (1 << i))!=0).collect() );
 		}
-		for tmp in &s {println!("{:?}",tmp)}
 
 		// all pattern (imposition)
 		let mut res = Vec::new();
@@ -371,16 +353,15 @@ impl Impositions {
 					},
 				}
 			}
-			res = generate_combinations(&tmp);
+			generate_cmbinations(&tmp, &mut res);
 		}
-		for tmp in &res {println!("{:?}",tmp)}
 
 		// add attribute
 		let mut res_attr = Vec::new();
 		for i in 0..res.len() {
 			let mut tmp = Vec::new();
 			for r in &res[i] {
-				if r.iter().sum::<u8>() == 0 {
+				if r.iter().sum::<usize>() == 0 {
 					tmp.push(Attribute::P(r.clone()));
 				}
 				else {
@@ -427,15 +408,14 @@ fn generate_select_combinations(chars: &Vec<usize>, s: usize, current: Vec<usize
    }
 }
 
-fn generate_combinations(target: &Vec<Vec<Vec<u8>>>) -> Vec<Vec<Vec<u8>>> {
-	let mut result: Vec<Vec<Vec<u8>>> = Vec::new();
+fn generate_cmbinations(target: &Vec<Vec<Vec<usize>>>, result: &mut Vec<Vec<Vec<usize>>>) {
 	let mut count = vec![0;target.len()];
 	let mut r = 1;
 
 	for i in 0..target.len() { r *= target[i].len() }
 
 	for _ in 0..r {
-		let mut tmp:Vec<Vec<u8>> = Vec::new();
+		let mut tmp:Vec<Vec<usize>> = Vec::new();
 		for i in 0..target.len() {
 			tmp.push(target[i][count[i]].clone());
 		}
@@ -449,39 +429,6 @@ fn generate_combinations(target: &Vec<Vec<Vec<u8>>>) -> Vec<Vec<Vec<u8>>> {
 			}
 		}
 	}
-
-	result
-}
-
-fn dp_enumerate(raider: usize, resource: usize) -> Vec<Vec<u8>> {
-	// DP table
-	let mut prev = vec![Vec::new(); resource + 1];
-	let mut current = vec![Vec::new(); resource + 1];
-
-	for i in 0..=resource {
-		prev[i] = vec![vec![i as u8]];
-	}
-
-	// update DP table
-	for i in 2..=raider {
-		for j in 0..=resource {
-			let mut patterns = Vec::new();
-			for k in 0..=j {
-				for pattern in &prev[j - k] {
-					let mut tmp = pattern.clone();
-					tmp.push(k as u8);
-					patterns.push(tmp);
-				}
-			}
-			current[j] = patterns;
-		}
-
-		// swap DP table (shift)
-		for tmp in &mut prev { tmp.clear() }
-		std::mem::swap(&mut prev, &mut current);
-	}
-
-	prev[resource].clone()
 }
 
 fn generate_problem(plist: &Products, mlist: &Machines, imposition_attr: &Vec<Vec<Attribute>>, select_num: usize) -> Vec<Vec<Vec<f32>>> {
@@ -817,10 +764,9 @@ fn main() {
 //	flist.show();
 
 	let mut plist = Products::new();
-	plist.add(&flist, "A4", 4, 500000);
 	plist.add(&flist, "A3", 4, 250000);
-	plist.add(&flist, "B3", 2, 100000);
-//	plist.add(&flist, "A4", 4, 500000);
+	plist.add(&flist, "A4", 4, 500000);
+//	plist.add(&flist, "B3", 2, 100000);
 //	plist.add(&flist, "B3", 4, 20000);
 //	plist.add(&flist, "A3", 3, 20000);
 //	plist.add(&flist, "B1", 3, 20000);
@@ -837,17 +783,16 @@ fn main() {
 
 	let mut tally = Tally::new();
 	tally.count(&flist, &plist);
-	tally.show();
+//	tally.show();
 
 	let mut tess = Tessellations::new();
 	tess.pack(&flist, &mlist, &tally, 10);
-	tess.show(&mlist, &tally);
+//	tess.show(&mlist, &tally);
 
 	let mut impo = Impositions::new();
-	impo.calc(&tally, &tess);
-	impo.show();
-//	let a = impo.generate_attributed_pattern();
+	impo.calc(&tally, &tess, &plist);
+//	impo.show();
 
-//	let probs = generate_problem(&plist, &mlist, &impo.generate_attributed_pattern(), 3);
-//	calclate_problem(&probs);
+	let probs = generate_problem(&plist, &mlist, &impo.generate_attributed_pattern(), 3);
+	calclate_problem(&probs);
 }
