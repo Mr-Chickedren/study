@@ -344,52 +344,122 @@ impl Impositions {
 	}
 	fn generate_pattern(&self) -> Vec<Vec<Vec<u8>>> {
 		if self.pattern.is_empty() { return Vec::new() }
-
 		generate_combinations(&self.pattern)
 	}
-	fn generate_attributed_pattern(&self) -> Vec<Vec<Attribute>> {
+	fn generate_attributed_pattern(&self, index: usize) -> Vec<Vec<Attribute>> {
 		if self.pattern.is_empty() { return Vec::new() }
 
 		// all pattern (select attribute)
-		let mut s: Vec<Vec<bool>> = Vec::new();
+		let mut s_attr: Vec<Vec<bool>> = Vec::new();
 		for binary in 1..2_u32.pow(self.pattern.len() as u32) {
-			s.push( (0..self.pattern.len()).rev().map(|i| (binary & (1 << i))!=0).collect() );
+			s_attr.push( (0..self.pattern.len()).rev().map(|i| (binary & (1 << i))!=0).collect() );
 		}
-		for tmp in &s {println!("{:?}",tmp)}
+		for tmp in &s_attr {println!("{:?}",tmp)}
 
-		// all pattern (imposition)
-		let mut res = Vec::new();
-		for i in 0..s.len() {
-			let mut tmp = Vec::new();
-			for j in 0..s[i].len() {
-				match s[i][j] {
-					false => {
-						tmp.push(vec![vec![0;self.pattern[0][0].len()]]);
-					},
-					true => {
-						tmp.push(self.pattern[j].clone());
-					},
-				}
+		// number of each pattern combinations
+		let mut n_comb = Vec::new();
+		for i in 0..s_attr.len() {
+			let mut tmp = 1;
+			for j in 0..s_attr[i].len() {
+				if s_attr[i][j] { tmp *= self.pattern[j].len() }
 			}
-			res = generate_combinations(&tmp);
+			n_comb.push(tmp);
 		}
-		for tmp in &res {println!("{:?}",tmp)}
+		println!("{:?}",n_comb);
 
-		// add attribute
-		let mut res_attr = Vec::new();
-		for i in 0..res.len() {
-			let mut tmp = Vec::new();
-			for r in &res[i] {
-				if r.iter().sum::<u8>() == 0 {
-					tmp.push(Attribute::P(r.clone()));
-				}
-				else {
-					tmp.push(Attribute::I(r.clone()));
-				}
+		let total_pattern = n_comb.iter().sum::<usize>();
+		let select_num = 3;
+		let mut indxs = vec![0;select_num];
+		let mut x = 0;
+		let mut select_total_pattern = 1;
+		for i in 0..select_num {
+			select_total_pattern *= total_pattern - i;
+		}
+		let mut indx = select_total_pattern / total_pattern;
+		if indx >= select_total_pattern { eprintln!("Error: Index is over flow.") }
+		x = select_total_pattern;
+		for i in 0..select_num {
+			if i != 0 { indx %= x }
+			indxs[i] = indx / (x / (total_pattern - i));
+			x /= total_pattern - i;
+		}
+		println!("indxs:{:?}",indxs);
+		let mut tmp = indxs.clone();
+		for i in 1..indxs.len() {
+			for j in (0..i).rev() {
+				if tmp[i] >= indxs[j] { tmp[i] += 1 }
 			}
-			res_attr.push(tmp);
 		}
+		println!("indxs:{:?}",tmp);
 
+
+		// reserve places and index for searching
+		let mut ind = index;
+		let mut place: Option<usize> = None;
+		for i in 0..n_comb.len() {
+			if ind >= n_comb[i] { ind -= n_comb[i] }
+			else { place = Some(i); break; }
+		}
+		if place == None { eprintln!("Error: Index is over flow. (patterns)") }
+		println!("{} {:?}",ind,place);
+
+		// calc index for each machine
+		let p = place.unwrap();
+		let n = s_attr[p].len();
+		let mut inds: Vec<Option<usize>> = vec![None;n];
+		for i in (0..n).rev() {
+			if s_attr[p][i] {
+				let t = self.pattern[i].len();
+				inds[i] = Some( ind % t );
+				ind /= t;
+			}
+		}
+		println!("{:?}",inds);
+
+		// create imposition from index
+		let mut tmp_imps = Vec::new();
+		for i in 0..inds.len() {
+			match inds[i] {
+				Some(imp_index) => { tmp_imps.push(self.pattern[i][imp_index].clone()) },
+				None => { tmp_imps.push(vec![0;self.pattern[0][0].len()]) },
+			}
+		}
+		println!("{:?}",tmp_imps);
+
+//		// all pattern (imposition)
+//		let mut res = Vec::new();
+//		for i in 0..s_attr.len() {
+//			let mut tmp = Vec::new();
+//			for j in 0..s_attr[i].len() {
+//				match s_attr[i][j] {
+//					false => {
+//						tmp.push(vec![vec![0;self.pattern[0][0].len()]]);
+//					},
+//					true => {
+//						tmp.push(self.pattern[j].clone());
+//					},
+//				}
+//			}
+//			res = generate_combinations(&tmp);
+//		}
+//		//for tmp in &res {println!("{:?}",tmp)}
+//
+//		// add attribute
+//		let mut res_attr = Vec::new();
+//		for i in 0..res.len() {
+//			let mut tmp = Vec::new();
+//			for r in &res[i] {
+//				if r.iter().sum::<u8>() == 0 {
+//					tmp.push(Attribute::P(r.clone()));
+//				}
+//				else {
+//					tmp.push(Attribute::I(r.clone()));
+//				}
+//			}
+//			res_attr.push(tmp);
+//		}
+//
+		let res_attr = Vec::new();
 		res_attr
 	}
 	fn show(&self) {
@@ -401,31 +471,31 @@ impl Impositions {
 	}
 }
 
-fn generate_select_combinations(chars: &Vec<usize>, s: usize, current: Vec<usize>, count: &mut Vec<Vec<usize>>, results: &mut Vec<Vec<usize>>) {
-	if current.len() == s {
-		for cnt in count.clone() {
-			let mut tmp = 0;
-			for i in 0..chars.len() {
-				if current.iter().filter(|&c| *c == chars[i]).count() == cnt[i] { tmp += 1 }
-			}
-			if tmp == chars.len() { return }
-		}
-
-		let mut cnt = vec![0;chars.len()];
-		for i in 0..chars.len() {
-			cnt[i] = current.iter().filter(|&c| *c == chars[i]).count();
-		}
-		count.push(cnt);
-		results.push(current);
-		return;
-	}
-
-   for c in chars.clone() {
-      let mut new_current = current.clone();
-      new_current.push(c);
-      generate_select_combinations(chars, s, new_current, count, results);
-   }
-}
+//fn generate_select_combinations(chars: &Vec<usize>, s: usize, current: Vec<usize>, count: &mut Vec<Vec<usize>>, results: &mut Vec<Vec<usize>>) {
+//	if current.len() == s {
+//		for cnt in count.clone() {
+//			let mut tmp = 0;
+//			for i in 0..chars.len() {
+//				if current.iter().filter(|&c| *c == chars[i]).count() == cnt[i] { tmp += 1 }
+//			}
+//			if tmp == chars.len() { return }
+//		}
+//
+//		let mut cnt = vec![0;chars.len()];
+//		for i in 0..chars.len() {
+//			cnt[i] = current.iter().filter(|&c| *c == chars[i]).count();
+//		}
+//		count.push(cnt);
+//		results.push(current);
+//		return;
+//	}
+//
+//   for c in chars.clone() {
+//      let mut new_current = current.clone();
+//      new_current.push(c);
+//      generate_select_combinations(chars, s, new_current, count, results);
+//   }
+//}
 
 fn generate_combinations(target: &Vec<Vec<Vec<u8>>>) -> Vec<Vec<Vec<u8>>> {
 	let mut result: Vec<Vec<Vec<u8>>> = Vec::new();
@@ -818,6 +888,7 @@ fn main() {
 
 	let mut plist = Products::new();
 	plist.add(&flist, "A4", 4, 500000);
+	plist.add(&flist, "A4", 4, 500000);
 	plist.add(&flist, "A3", 4, 250000);
 	plist.add(&flist, "B3", 2, 100000);
 //	plist.add(&flist, "A4", 4, 500000);
@@ -832,7 +903,7 @@ fn main() {
 	let mut mlist = Machines::new();
 	mlist.add(&flist, "KK1", 2, 5000);
 	mlist.add(&flist, "KK2", 4, 5000);
-//	mlist.add(&flist, "SR1", 4, 5000);
+	mlist.add(&flist, "SR1", 4, 5000);
 //	mlist.show();
 
 	let mut tally = Tally::new();
@@ -846,7 +917,8 @@ fn main() {
 	let mut impo = Impositions::new();
 	impo.calc(&tally, &tess);
 	impo.show();
-//	let a = impo.generate_attributed_pattern();
+	let a = impo.generate_attributed_pattern(1);
+	//println!("50:{:?}",a[50]);
 
 //	let probs = generate_problem(&plist, &mlist, &impo.generate_attributed_pattern(), 3);
 //	calclate_problem(&probs);
