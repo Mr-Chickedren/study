@@ -1,5 +1,8 @@
 const ROUNDING_DIGIT: f32 = 4.0;
 const DEBUG_IMPOSITION: bool = false;
+const DEBUG_NUMBER_SYSTM: bool = false;
+const DEBUG_ITER_COUNTER: bool = true;
+const DEBUG_PUT_ERROR: bool = false;
 
 enum Error {
 	//Optimal solution does not exist	
@@ -43,6 +46,25 @@ impl Attribute {
 			Attribute::I(x) => x.len(),
 			Attribute::P(x) => x.len(),
 		}
+	}
+}
+
+struct Iter {
+	first: usize,
+	last: usize,
+}
+impl Iter {
+	fn new(f: usize, l: usize) -> Self {
+		Self { first: f, last: l }
+	}
+	fn into_iter(&self) -> impl Iterator<Item = usize> {
+		self.first..self.last
+	}
+	fn first(&self) -> usize {
+		self.first
+	}
+	fn last(&self) -> usize {
+		self.last
 	}
 }
 
@@ -342,125 +364,240 @@ impl Impositions {
 			self.pattern.push(stage);
 		}
 	}
+	// all pattern (select attribute for machine)
+	fn generate_select_machine_patterns(&self) -> Vec<Vec<bool>> {
+		let mut s: Vec<Vec<bool>> = Vec::new();
+		for binary in 1..2_u32.pow(self.pattern.len() as u32) {
+			s.push( (0..self.pattern.len()).rev().map(|i| (binary & (1 << i))!=0).collect() );
+		}
+		s
+	}
+	// number of each pattern combinations
+	fn total_impositions_each_pattern(&self, use_imp: Option<usize>) -> (usize, Vec<usize>, Option<usize>) {
+		let s = self.generate_select_machine_patterns();
+		let mut n_imps = Vec::new();
+		for i in 0..s.len() {
+			let mut tmp = 1;
+			for j in 0..s[i].len() {
+				if s[i][j] { tmp *= self.pattern[j].len() }
+			}
+			n_imps.push(tmp);
+		}
+
+		let total_imp = n_imps.iter().sum::<usize>();
+
+		match use_imp {
+			Some(x) => {
+				let mut total_use = 1;
+				for i in 0..x {
+					total_use *= total_imp - i;
+				}
+
+				(total_imp, n_imps, Some(total_use))
+			},
+			None => {
+				(total_imp, n_imps, None)
+			},
+		}
+
+	}
 	fn generate_pattern(&self) -> Vec<Vec<Vec<u8>>> {
 		if self.pattern.is_empty() { return Vec::new() }
 		generate_combinations(&self.pattern)
 	}
-	fn generate_attributed_pattern(&self, index: usize) -> Vec<Vec<Attribute>> {
-		if self.pattern.is_empty() { return Vec::new() }
+	fn generate_attributed_pattern(&self, plist: &Products, mlist: &Machines, n_use_imp: usize, use_imp_iter: Iter) -> Option< (Vec<Vec<f32>>, Vec<usize>, Vec<Vec<Attribute>>) > {
 
-		// all pattern (select attribute)
-		let mut s_attr: Vec<Vec<bool>> = Vec::new();
-		for binary in 1..2_u32.pow(self.pattern.len() as u32) {
-			s_attr.push( (0..self.pattern.len()).rev().map(|i| (binary & (1 << i))!=0).collect() );
+		let mut best: Option< (Vec<Vec<f32>>, Vec<usize>, Vec<Vec<Attribute>>) > = None;
+
+		// all pattern (select attribute for machine)
+		let s_attr = self.generate_select_machine_patterns();
+		if DEBUG_NUMBER_SYSTM {
+			for tmp in &s_attr { println!("{:?}",tmp) }
 		}
-		for tmp in &s_attr {println!("{:?}",tmp)}
 
 		// number of each pattern combinations
-		let mut n_comb = Vec::new();
-		for i in 0..s_attr.len() {
-			let mut tmp = 1;
-			for j in 0..s_attr[i].len() {
-				if s_attr[i][j] { tmp *= self.pattern[j].len() }
+		let (total_imp, n_imps, total_use) = self.total_impositions_each_pattern(Some(n_use_imp));
+
+		for number in use_imp_iter.into_iter() {
+			if DEBUG_ITER_COUNTER && !DEBUG_PUT_ERROR {
+				print!("{}/({}..{}) total:{}\r"
+					,number
+					,use_imp_iter.first()
+					,use_imp_iter.last() - 1
+					,total_use.unwrap()
+				)
 			}
-			n_comb.push(tmp);
-		}
-		println!("{:?}",n_comb);
+			if number >= total_use.unwrap() { eprintln!("Error: Index is over flow."); break;}
 
-		let total_pattern = n_comb.iter().sum::<usize>();
-		let select_num = 3;
-		let mut indxs = vec![0;select_num];
-		let mut x = 0;
-		let mut select_total_pattern = 1;
-		for i in 0..select_num {
-			select_total_pattern *= total_pattern - i;
-		}
-		let mut indx = select_total_pattern / total_pattern;
-		if indx >= select_total_pattern { eprintln!("Error: Index is over flow.") }
-		x = select_total_pattern;
-		for i in 0..select_num {
-			if i != 0 { indx %= x }
-			indxs[i] = indx / (x / (total_pattern - i));
-			x /= total_pattern - i;
-		}
-		println!("indxs:{:?}",indxs);
-		let mut tmp = indxs.clone();
-		for i in 1..indxs.len() {
-			for j in (0..i).rev() {
-				if tmp[i] >= indxs[j] { tmp[i] += 1 }
+			// number -> select_sequence vecter [number of select]
+			let mut num = number;
+			let mut use_imp_indexes = vec![0;n_use_imp];
+
+			let mut x = total_use.unwrap();
+			for i in 0..n_use_imp {
+				if i != 0 { num %= x }
+				use_imp_indexes[i] = num / (x / (total_imp - i));
+				x /= total_imp - i;
+			}
+			if DEBUG_NUMBER_SYSTM { println!("indexes:{:?}",use_imp_indexes) }
+
+			let mut tmp = use_imp_indexes.clone();
+			for i in 1..tmp.len() {
+				for j in (0..i).rev() {
+					if use_imp_indexes[i] >= tmp[j] { use_imp_indexes[i] += 1 }
+				}
+			}
+			if DEBUG_NUMBER_SYSTM { println!("indexes:{:?}",use_imp_indexes) }
+
+			let mut selected_imps = Vec::new();
+			for use_imp_index in &use_imp_indexes {
+
+				// reserve places and index for searching
+				let mut u_index = *use_imp_index;
+				let mut place: Option<usize> = None;
+				for i in 0..n_imps.len() {
+					if u_index >= n_imps[i] { u_index -= n_imps[i] }
+					else { place = Some(i); break; }
+				}
+				if place == None { eprintln!("Error: Index is over flow. (patterns)") }
+				if DEBUG_NUMBER_SYSTM { println!("place:{:?} -> {}",place,u_index) }
+
+				// calc index for each machine
+				let p = place.unwrap();
+				let n = s_attr[p].len();
+				let mut machine_selects: Vec<Option<usize>> = vec![None;n];
+				for i in (0..n).rev() {
+					if s_attr[p][i] {
+						let t = self.pattern[i].len();
+						machine_selects[i] = Some( u_index % t );
+						u_index /= t;
+					}
+				}
+				if DEBUG_NUMBER_SYSTM { println!("{:?}",machine_selects) }
+
+				// create imposition from index
+				let mut tmp_imps = Vec::new();
+				for i in 0..machine_selects.len() {
+					match machine_selects[i] {
+						Some(ms) => {
+							tmp_imps.push(self.pattern[i][ms].clone())
+						},
+						None => {
+							tmp_imps.push(vec![0;self.pattern[0][0].len()])
+						},
+					}
+				}
+				if DEBUG_NUMBER_SYSTM { println!("{:?}",tmp_imps) }
+
+				selected_imps.push(tmp_imps);
+			}
+
+			if DEBUG_NUMBER_SYSTM {
+				println!("selected imps:");
+				for tmp in &selected_imps { println!("{:?}",tmp) }
+			}
+
+			// add attribute
+			let mut selected_imps_attr = Vec::new();
+			for idx in 0..selected_imps.len() {
+				let mut tmp = Vec::new();
+				for v in &selected_imps[idx] {
+					if v.iter().sum::<u8>() == 0 {
+						tmp.push(Attribute::P(v.clone()));
+					}
+					else {
+						tmp.push(Attribute::I(v.clone()));
+					}
+				}
+				selected_imps_attr.push(tmp);
+			}
+
+			if DEBUG_NUMBER_SYSTM {
+				println!("selected imps (add attribute):");
+				for tmp in &selected_imps_attr { println!("{:?}",tmp) }
+			}
+
+			// fill vecter in attribute-P (printing)
+			let mut tmp_v = vec![None;mlist.machine.len()];
+			for i in 0..selected_imps_attr.len() {
+				for j in 0..selected_imps_attr[i].len() {
+					match &mut selected_imps_attr[i][j] {
+						Attribute::I(v) => {
+							tmp_v[j] = Some(v.clone());
+						},
+						Attribute::P(ref mut v) => {
+							match &tmp_v[j] {
+								Some(tv) => { *v = tv.clone() },
+								None => {},
+							}
+						},
+					}
+				}
+			}
+
+			if DEBUG_NUMBER_SYSTM {
+				println!("selected imps (fill vecter):");
+				for tmp in &selected_imps_attr { println!("{:?}",tmp) }
+			}
+
+			// create problem: object function
+			//[u = 0 + 3*x1 + 1*x2 + 2*x3 + 0*x4]
+			let mut problem: Vec<Vec<f32>> = Vec::new();
+			problem.push( vec![0.0; 1 + n_use_imp + plist.product.len()] );
+			problem[0][0] = n_use_imp as f32;
+			for i in 0..n_use_imp { problem[0][i + 1] = 1.0 }
+
+			// create problem: conditions
+			//[6 = 1*x1 + 2*x2 + 3*x3 + -1*x4]
+			//[10 = 3*x1 + 2*x2 + 1*x3 + 1*x4]
+			for i in 0..plist.product.len() {
+				problem.push( vec![0.0; problem[0].len()] );
+				problem[i + 1][0] = plist.product[i].num as f32;
+			}
+			for i in 0..selected_imps_attr.len() {
+				for j in 0..selected_imps_attr[i].len() {
+					let v_c = selected_imps_attr[i][j].extract_conditional();
+					let v_nc = selected_imps_attr[i][j].extract();
+					for k in 0..v_c.len() {
+						problem[k + 1][0] -= mlist.machine[j].speed as f32 * v_c[k] as f32;
+						problem[k + 1][i + 1] += mlist.machine[j].speed as f32 * v_nc[k] as f32;
+					}
+				}
+			}
+			// add slug-val
+			for i in 0..plist.product.len() {
+				problem[i + 1][1 + n_use_imp + i] = -1.0;
+			}
+
+			// calclate problem and reserve best result
+			let mut bv = Vec::new();
+			let result = calclate_problem(&mut problem, &mut bv);
+			match result {
+				Ok(_) => {
+					match best {
+						Some((ref mut prb,_,_)) => {
+							if problem[0][0] < prb[0][0] {
+								best = Some((problem.clone(),bv.clone(), selected_imps_attr))
+							}
+						},
+						None => {
+							best = Some((problem.clone(),bv.clone(), selected_imps_attr))
+						},
+					}
+				},
+				Err(err) => {
+					if DEBUG_PUT_ERROR {
+						match err {
+							Error::NotExist(s) => { eprintln!("{} {}",number,s) }
+							Error::FailedPhase(s) => { eprintln!("{} {}",number,s) }
+							Error::NotNeed(s) => { eprintln!("{} {}",number,s) }
+						}
+					}
+				},
 			}
 		}
-		println!("indxs:{:?}",tmp);
 
-
-		// reserve places and index for searching
-		let mut ind = index;
-		let mut place: Option<usize> = None;
-		for i in 0..n_comb.len() {
-			if ind >= n_comb[i] { ind -= n_comb[i] }
-			else { place = Some(i); break; }
-		}
-		if place == None { eprintln!("Error: Index is over flow. (patterns)") }
-		println!("{} {:?}",ind,place);
-
-		// calc index for each machine
-		let p = place.unwrap();
-		let n = s_attr[p].len();
-		let mut inds: Vec<Option<usize>> = vec![None;n];
-		for i in (0..n).rev() {
-			if s_attr[p][i] {
-				let t = self.pattern[i].len();
-				inds[i] = Some( ind % t );
-				ind /= t;
-			}
-		}
-		println!("{:?}",inds);
-
-		// create imposition from index
-		let mut tmp_imps = Vec::new();
-		for i in 0..inds.len() {
-			match inds[i] {
-				Some(imp_index) => { tmp_imps.push(self.pattern[i][imp_index].clone()) },
-				None => { tmp_imps.push(vec![0;self.pattern[0][0].len()]) },
-			}
-		}
-		println!("{:?}",tmp_imps);
-
-//		// all pattern (imposition)
-//		let mut res = Vec::new();
-//		for i in 0..s_attr.len() {
-//			let mut tmp = Vec::new();
-//			for j in 0..s_attr[i].len() {
-//				match s_attr[i][j] {
-//					false => {
-//						tmp.push(vec![vec![0;self.pattern[0][0].len()]]);
-//					},
-//					true => {
-//						tmp.push(self.pattern[j].clone());
-//					},
-//				}
-//			}
-//			res = generate_combinations(&tmp);
-//		}
-//		//for tmp in &res {println!("{:?}",tmp)}
-//
-//		// add attribute
-//		let mut res_attr = Vec::new();
-//		for i in 0..res.len() {
-//			let mut tmp = Vec::new();
-//			for r in &res[i] {
-//				if r.iter().sum::<u8>() == 0 {
-//					tmp.push(Attribute::P(r.clone()));
-//				}
-//				else {
-//					tmp.push(Attribute::I(r.clone()));
-//				}
-//			}
-//			res_attr.push(tmp);
-//		}
-//
-		let res_attr = Vec::new();
-		res_attr
+		best
 	}
 	fn show(&self) {
 		println!("*** Imposition Patterns ***");
@@ -524,6 +661,7 @@ fn generate_combinations(target: &Vec<Vec<Vec<u8>>>) -> Vec<Vec<Vec<u8>>> {
 }
 
 fn dp_enumerate(raider: usize, resource: usize) -> Vec<Vec<u8>> {
+
 	// DP table
 	let mut prev = vec![Vec::new(); resource + 1];
 	let mut current = vec![Vec::new(); resource + 1];
@@ -821,42 +959,10 @@ fn show_dict(dict: &Vec<Vec<f32>>, bv: &Vec<usize>) {
 	}
 }
 
-fn calclate_problem(probs: &Vec<Vec<Vec<f32>>>) {
-	let mut best: Option< (Vec<Vec<f32>>, Vec<usize>, usize) > = None;
-
-	for i in 0..probs.len() {
-		let mut prob = probs[i].clone();
-		let mut bv = Vec::new();
-
-		match two_phase_simplex_method(&mut prob, &mut bv) {
-			Ok(_) => {
-				show_dict(&prob, &bv);
-				match best {
-					None => {
-						best = Some( (prob.clone(), bv.clone(), i) );
-					},
-					Some( (ref b, _, _) ) => {
-						if b[0][0] > prob[0][0] {
-							best = Some( (prob.clone(), bv.clone(), i) );
-						}
-					},
-				}
-			},
-			Err(err) => {
-				match err {
-					Error::NotExist(s) => { eprintln!("{s}") },
-					Error::FailedPhase(s) => { eprintln!("{s}") },
-					Error::NotNeed(s) => { eprintln!("{s}") },
-				}
-			}, 
-		}
-	}
-
-	println!("\n*** result ***");
-	if let Some((p,b,i)) = best {
-		for t in &probs[i] { println!("{:?}",t) }
-		show_dict(&p,&b);
-		for t in &p { println!("{:?}",t) }
+fn calclate_problem(problem: &mut Vec<Vec<f32>>, bv: &mut Vec<usize>) -> Result<(), Error> {
+	match two_phase_simplex_method(problem, bv) {
+		Ok(_) => { Ok(()) },
+		Err(err) => { Err(err) }, 
 	}
 }
 
@@ -887,10 +993,11 @@ fn main() {
 //	flist.show();
 
 	let mut plist = Products::new();
-	plist.add(&flist, "A4", 4, 500000);
-	plist.add(&flist, "A4", 4, 500000);
-	plist.add(&flist, "A3", 4, 250000);
-	plist.add(&flist, "B3", 2, 100000);
+	plist.add(&flist, "A4", 4, 50000);
+	plist.add(&flist, "A4", 4, 50000);
+//	plist.add(&flist, "A4", 4, 50000);
+//	plist.add(&flist, "A3", 4, 25000);
+//	plist.add(&flist, "B3", 2, 10000);
 //	plist.add(&flist, "A4", 4, 500000);
 //	plist.add(&flist, "B3", 4, 20000);
 //	plist.add(&flist, "A3", 3, 20000);
@@ -903,7 +1010,7 @@ fn main() {
 	let mut mlist = Machines::new();
 	mlist.add(&flist, "KK1", 2, 5000);
 	mlist.add(&flist, "KK2", 4, 5000);
-	mlist.add(&flist, "SR1", 4, 5000);
+//	mlist.add(&flist, "SR1", 4, 5000);
 //	mlist.show();
 
 	let mut tally = Tally::new();
@@ -917,7 +1024,21 @@ fn main() {
 	let mut impo = Impositions::new();
 	impo.calc(&tally, &tess);
 	impo.show();
-	let a = impo.generate_attributed_pattern(1);
+
+	let iter = Iter::new(0,10000000);//impo.total_impositions_each_pattern(Some(3)).2.unwrap());
+	let result = impo.generate_attributed_pattern(&plist, &mlist, 3, iter);
+	//現状受注の個数が非規定変数の個数になっている
+	//選択の個数によって条件式をさらに追加する処理が必要
+
+	if DEBUG_ITER_COUNTER && !DEBUG_PUT_ERROR { println!("") }
+
+	if let Some((prb,bv,s_imps)) = result {
+		println!("time: {}\nbv: {:?}\nselected impositions:",prb[0][0],bv);
+		for i in 0..s_imps.len() {println!("{:?}",s_imps[i])}
+		for i in 0..bv.len() {
+			println!("{}: {}h",bv[i]-1, prb[i+1][0]);
+		}
+	}
 	//println!("50:{:?}",a[50]);
 
 //	let probs = generate_problem(&plist, &mlist, &impo.generate_attributed_pattern(), 3);
