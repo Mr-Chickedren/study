@@ -68,6 +68,7 @@ impl Iter {
 	}
 }
 
+// Paper and machine combined
 struct Format {
 	name: String,
 	size: (u32,u32),
@@ -106,6 +107,7 @@ impl FormatList {
 		}
 		else { println!("Error: \"{}\" is not exists. Please excute \"add_series()\"", format) }
 	}
+	// output one size smaller
 	fn downgrade(&self, size: &String) -> Option<String> {
 		if let Some((index, row)) = self.dict.iter().find_map(|row| { row.iter().position(|x| x.name == *size).map(|j| (j, row))}) {
 			if index != row.len()-1 { Some(row[index+1].name.clone()) }
@@ -181,6 +183,7 @@ impl Machines {
 	}
 }
 
+// Classify ordered items into different sizes
 struct Tally {
 	data: Vec<Vec<(String, Vec<usize>)>>,
 }
@@ -209,7 +212,7 @@ impl Tally {
 	}
 }
 
-
+// Keep track of how many papers of each size fit on a printing plate
 struct Tessellations {
 	pattern: Vec<Vec<Vec<Vec<u8>>>>,
 	stage: Vec<Vec<u8>>,
@@ -218,9 +221,11 @@ impl Tessellations {
 	fn new() -> Self {
 		Self{ pattern: Vec::new(), stage: Vec::new() }
 	}
+	// Recursive functions
 	fn pack_recursive(&mut self, flist: &FormatList, (m_short,m_long): &(u32,u32), input_products: &Vec<String>, index: usize, margin: u32, dir: Direction, mut result: Vec<u8>) {
 		if let Some(p_size) = flist.put_size(&input_products[index]) {
 			match dir {
+				// case: put it on the side
 				Direction::Correct => {
 					let fit_short = *m_short / (p_size.0+(2*margin));
 					if fit_short != 0 && p_size.1+(2*margin) < *m_long {
@@ -228,17 +233,20 @@ impl Tessellations {
 						self.pack_recursive(flist, &(*m_short,m_long-p_size.1+(2*margin)), input_products, index, margin, dir, result.clone());
 
 						if index != input_products.len()-1 {
+							// case: exist one size smaller
 							if let Some(dg_size) = flist.downgrade(&input_products[index]) {
 								if dg_size == input_products[index+1] {
 									self.pack_recursive(flist, &(*m_short,m_long-p_size.1+(2*margin)), input_products, index+1, margin, Direction::Reverse, result.clone());
 								}
 							}
 						}
+
 					}
 					else {
 						if result.iter().sum::<u8>() != 0 { self.stage.push(result) }
 					}
 				},
+				// case: put it vertically
 				Direction::Reverse => {
 					let fit_short = *m_short / (p_size.1+(2*margin));
 					if fit_short != 0 && p_size.0+(2*margin) < *m_long {
@@ -252,6 +260,7 @@ impl Tessellations {
 			}
 		}
 	}
+	// The actual function to be called
 	fn pack(&mut self, flist: &FormatList, mlist: &Machines, tally: &Tally, margin: u32) {
 		let direction = vec![Direction::Correct, Direction::Reverse];
 
@@ -277,8 +286,6 @@ impl Tessellations {
 					}
 
 					rm_list.sort_by(|a,b| b.cmp(a));
-//					println!("rm:{:?}",rm_list);
-//					println!("st:{:?}\n",self.stage);
 					for rm_index in rm_list { self.stage.remove(rm_index); }
 					self.pattern[machine_index][series_index].extend(self.stage.clone());
 					self.stage.clear();
@@ -401,11 +408,8 @@ impl Impositions {
 		}
 
 	}
-	fn generate_pattern(&self) -> Vec<Vec<Vec<u8>>> {
-		if self.pattern.is_empty() { return Vec::new() }
-		generate_combinations(&self.pattern)
-	}
-	fn generate_attributed_pattern(&self, plist: &Products, mlist: &Machines, n_use_imp: usize, use_imp_iter: Iter) -> Option< (Vec<Vec<f32>>, Vec<usize>, Vec<Vec<Attribute>>) > {
+	// index -> each pattern(impositions) -> 2 phase simplex method
+	fn search_optimal_solution(&self, plist: &Products, mlist: &Machines, n_use_imp: usize, use_imp_iter: Iter) -> Option< (Vec<Vec<f32>>, Vec<usize>, Vec<Vec<Attribute>>) > {
 
 		let mut best: Option< (Vec<Vec<f32>>, Vec<usize>, Vec<Vec<Attribute>>) > = None;
 
@@ -441,7 +445,7 @@ impl Impositions {
 			}
 			if DEBUG_NUMBER_SYSTM { println!("indexes:{:?}",use_imp_indexes) }
 
-			let mut tmp = use_imp_indexes.clone();
+			let tmp = use_imp_indexes.clone();
 			for i in 1..tmp.len() {
 				for j in (0..i).rev() {
 					if use_imp_indexes[i] >= tmp[j] { use_imp_indexes[i] += 1 }
@@ -571,7 +575,7 @@ impl Impositions {
 
 			// calclate problem and reserve best result
 			let mut bv = Vec::new();
-			let result = calclate_problem(&mut problem, &mut bv);
+			let result = two_phase_simplex_method(&mut problem, &mut bv);
 			match result {
 				Ok(_) => {
 					match best {
@@ -607,32 +611,6 @@ impl Impositions {
 		print!("\n");
 	}
 }
-
-//fn generate_select_combinations(chars: &Vec<usize>, s: usize, current: Vec<usize>, count: &mut Vec<Vec<usize>>, results: &mut Vec<Vec<usize>>) {
-//	if current.len() == s {
-//		for cnt in count.clone() {
-//			let mut tmp = 0;
-//			for i in 0..chars.len() {
-//				if current.iter().filter(|&c| *c == chars[i]).count() == cnt[i] { tmp += 1 }
-//			}
-//			if tmp == chars.len() { return }
-//		}
-//
-//		let mut cnt = vec![0;chars.len()];
-//		for i in 0..chars.len() {
-//			cnt[i] = current.iter().filter(|&c| *c == chars[i]).count();
-//		}
-//		count.push(cnt);
-//		results.push(current);
-//		return;
-//	}
-//
-//   for c in chars.clone() {
-//      let mut new_current = current.clone();
-//      new_current.push(c);
-//      generate_select_combinations(chars, s, new_current, count, results);
-//   }
-//}
 
 fn generate_combinations(target: &Vec<Vec<Vec<u8>>>) -> Vec<Vec<Vec<u8>>> {
 	let mut result: Vec<Vec<Vec<u8>>> = Vec::new();
@@ -671,7 +649,7 @@ fn dp_enumerate(raider: usize, resource: usize) -> Vec<Vec<u8>> {
 	}
 
 	// update DP table
-	for i in 2..=raider {
+	for _i in 2..=raider {
 		for j in 0..=resource {
 			let mut patterns = Vec::new();
 			for k in 0..=j {
@@ -692,93 +670,7 @@ fn dp_enumerate(raider: usize, resource: usize) -> Vec<Vec<u8>> {
 	prev[resource].clone()
 }
 
-fn generate_problem(plist: &Products, mlist: &Machines, imposition_attr: &Vec<Vec<Attribute>>, select_num: usize) -> Vec<Vec<Vec<f32>>> {
-	let mut n = 0;
-	let mut prob_all: Vec<Vec<Vec<f32>>> = Vec::new();
-	
-	if select_num <= 0 { n = 1 }
-	else if select_num > imposition_attr.len() { n = imposition_attr.len() }
-	else { n = select_num }
-
-	// create select matrix
-	let mut s: Vec<Vec<usize>> = Vec::new();
-	let mut tmp: Vec<usize> = vec![0;select_num];
-	for _i in 0..imposition_attr.len().pow(select_num.try_into().unwrap()) {
-		let mut ps = true;
-		for j in 0..tmp.len()-1 {
-			for k in j+1..tmp.len() {
-				if tmp[j] == tmp[k] { ps = false; break; }
-			}
-			if !ps { break }
-		}
-		if ps { s.push(tmp.clone()) }
-		tmp[select_num - 1] += 1;
-		for j in (1..tmp.len()).rev() {
-			if tmp[j] >= imposition_attr.len() {
-				tmp[j] = 0;
-				tmp[j-1] += 1;
-			}
-		}
-	}
-
-	// generate problem for all select
-	for select in 0..s.len() {
-		// apply select matrix to impositions
-		let mut imposition_app = Vec::new();
-		for i in &s[select] {
-			imposition_app.push(imposition_attr[*i].clone());
-		}
-		let mut vs = vec![vec![0;plist.product.len()];mlist.machine.len()];
-		for i in 0..imposition_app.len() {
-			for j in 0..imposition_app[i].len() {
-				match &imposition_app[i][j] {
-					Attribute::I(v) => {
-						vs[j] = v.clone();
-					},
-					Attribute::P(v) => {
-						if i != 0 {
-							imposition_app[i][j] = Attribute::P(vs[j].clone());
-						}
-					},
-				}
-			}
-		}
-
-		// create problem: object fnction (each select)
-		let mut prob: Vec<Vec<f32>> = Vec::new();
-		prob.push( vec![0.0; 1 + select_num + plist.product.len()] );
-		prob[0][0] = select_num as f32;
-		for i in 0..select_num { prob[0][i + 1] = 1.0 }
-
-		// create problem: conditions (each select)
-		//[u = 0 + 3*x1 + 1*x2 + 2*x3 + 0*x4]
-		//[6 = 1*x1 + 2*x2 + 3*x3 + -1*x4]
-		//[10 = 3*x1 + 2*x2 + 1*x3 + 1*x4]
-		for i in 0..plist.product.len() {
-			prob.push( vec![0.0; prob[0].len()] );
-			prob[i + 1][0] = plist.product[i].num as f32;
-		}
-		for i in 0..imposition_app.len() {
-			for j in 0..imposition_app[i].len() {
-				let v_c = imposition_app[i][j].extract_conditional();
-				let v_nc = imposition_app[i][j].extract();
-				for k in 0..v_c.len() {
-					prob[k + 1][0] -= mlist.machine[j].speed as f32 * v_c[k] as f32;
-					prob[k + 1][i + 1] += mlist.machine[j].speed as f32 * v_nc[k] as f32;
-				}
-			}
-		}
-		// add slug-val
-		for i in 0..plist.product.len() {
-			prob[i + 1][1 + select_num + i] = -1.0;
-		}
-
-		prob_all.push(prob);
-	}
-
-	prob_all
-}
-
+// In the two-phase simplex method, it is necessary to create a artificial problem before the first application.
 fn convert_artificial_problem_dict(prob: &mut Vec<Vec<f32>>) -> Vec<usize> {
 	let mut bv = Vec::new();
 
@@ -925,6 +817,7 @@ fn two_phase_simplex_method(dict: &mut Vec<Vec<f32>>, bv: &mut Vec<usize>) -> Re
 	Ok(())
 }
 
+// for input/debug
 fn show_dict(dict: &Vec<Vec<f32>>, bv: &Vec<usize>) {
 	print!("min. u    = ");
 	for i in 0..dict[0].len() {
@@ -959,13 +852,6 @@ fn show_dict(dict: &Vec<Vec<f32>>, bv: &Vec<usize>) {
 	}
 }
 
-fn calclate_problem(problem: &mut Vec<Vec<f32>>, bv: &mut Vec<usize>) -> Result<(), Error> {
-	match two_phase_simplex_method(problem, bv) {
-		Ok(_) => { Ok(()) },
-		Err(err) => { Err(err) }, 
-	}
-}
-
 
 fn main() {
 	let mut flist = FormatList::new();
@@ -990,28 +876,20 @@ fn main() {
 	flist.add_format("SR2", (545,788));
 	flist.add_format("SR4", (394,545));
 	flist.add_format("SR8", (272,394));
-//	flist.show();
+	flist.show();
 
 	let mut plist = Products::new();
 	plist.add(&flist, "A4", 4, 50000);
 	plist.add(&flist, "A4", 4, 50000);
-//	plist.add(&flist, "A4", 4, 50000);
-//	plist.add(&flist, "A3", 4, 25000);
-//	plist.add(&flist, "B3", 2, 10000);
-//	plist.add(&flist, "A4", 4, 500000);
-//	plist.add(&flist, "B3", 4, 20000);
-//	plist.add(&flist, "A3", 3, 20000);
-//	plist.add(&flist, "B1", 3, 20000);
-//	plist.add(&flist, "B4", 3, 20000);
-//	plist.add(&flist, "B4", 3, 20000);
-//	plist.add(&flist, "A2", 3, 20000);
-//	plist.show();
+	plist.add(&flist, "A4", 4, 50000);
+	plist.add(&flist, "A4", 4, 50000);
+	plist.add(&flist, "A4", 4, 50000);
+	plist.show();
 
 	let mut mlist = Machines::new();
-	mlist.add(&flist, "KK1", 2, 5000);
-	mlist.add(&flist, "KK2", 4, 5000);
-//	mlist.add(&flist, "SR1", 4, 5000);
-//	mlist.show();
+	mlist.add(&flist, "KK1", 4, 5000);
+	mlist.add(&flist, "KK1", 4, 5000);
+	mlist.show();
 
 	let mut tally = Tally::new();
 	tally.count(&flist, &plist);
@@ -1025,10 +903,8 @@ fn main() {
 	impo.calc(&tally, &tess);
 	impo.show();
 
-	let iter = Iter::new(0,10000000);//impo.total_impositions_each_pattern(Some(3)).2.unwrap());
-	let result = impo.generate_attributed_pattern(&plist, &mlist, 3, iter);
-	//現状受注の個数が非規定変数の個数になっている
-	//選択の個数によって条件式をさらに追加する処理が必要
+	let iter = Iter::new(0,10000000);
+	let result = impo.search_optimal_solution(&plist, &mlist, 3, iter);
 
 	if DEBUG_ITER_COUNTER && !DEBUG_PUT_ERROR { println!("") }
 
@@ -1039,8 +915,8 @@ fn main() {
 			println!("{}: {}h",bv[i]-1, prb[i+1][0]);
 		}
 	}
-	//println!("50:{:?}",a[50]);
+	else {
+		eprintln!("Not exist optimal solution...");
+	}
 
-//	let probs = generate_problem(&plist, &mlist, &impo.generate_attributed_pattern(), 3);
-//	calclate_problem(&probs);
 }
